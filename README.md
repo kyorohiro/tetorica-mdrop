@@ -36,7 +36,7 @@ Launch the app and click:
 
 On any device connected to the same Wi-Fi:
 
-[http://tetorica-home.local:7878/](http://tetorica-home.local:7878/)
+[http://tetorica-drop.local:7878/](http://tetorica-drop.local:7878/)
 
 or
 
@@ -151,7 +151,7 @@ Timestamp     A/R    Flags  if Domain               Service Type         Instanc
 Lookup Tetorica Home Server._http._tcp.local
 DATE: ---Sun 26 Apr 2026---
  0:46:21.697  ...STARTING...
- 0:46:22.128  Tetorica\032Home\032Server._http._tcp.local. can be reached at tetorica-home.local.:7878 (interface 11)
+ 0:46:22.128  Tetorica\032Home\032Server._http._tcp.local. can be reached at tetorica-drop.local.:7878 (interface 11)
  path=/
  ```
 
