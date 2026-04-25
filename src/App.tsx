@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 type ServerStatus = {
   running: boolean;
@@ -13,6 +16,13 @@ type BonjourStatus = {
   service_name?: string | null;
   service_type?: string | null;
   port?: number | null;
+};
+
+type SharedFileInfo = {
+  id: string;
+  name: string;
+  path: string;
+  url: string;
 };
 
 const initialServerStatus: ServerStatus = {
@@ -35,6 +45,7 @@ function App() {
   const [bonjourStatus, setBonjourStatus] =
     useState<BonjourStatus>(initialBonjourStatus);
   const [errorMsg, setErrorMsg] = useState("");
+  const [sharedFiles, setSharedFiles] = useState<SharedFileInfo[]>([]);
 
   async function callCommand<T>(
     command: string,
@@ -61,6 +72,33 @@ function App() {
     }
   }
 
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+
+    const unlistenPromise = appWindow.onDragDropEvent(async (event) => {
+      console.log(event);
+
+      if (event.payload.type !== "drop") {
+        return;
+      }
+
+      const paths = event.payload.paths;
+      console.log(paths);
+
+      for (const path of paths) {
+        const file = await invoke<SharedFileInfo>("share_file", {
+          req: { path },
+        });
+
+        setSharedFiles((prev) => [file, ...prev]);
+      }
+    });
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
   return (
     <main className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-3xl px-6 py-8">
@@ -85,6 +123,32 @@ function App() {
           <Button onClick={greet}>Greet</Button>
         </section>
 
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
+          <h2 className="text-lg font-semibold">Shared Files</h2>
+
+          <div className="mt-4 rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300">
+            Drop files here
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {sharedFiles.map((file) => (
+              <div
+                key={file.id}
+                className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
+              >
+                <div className="font-medium text-slate-100">{file.name}</div>
+                <a
+                  className="break-all text-sky-300 underline underline-offset-4"
+                  href={file.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {file.url}
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
         <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold">Server</h2>

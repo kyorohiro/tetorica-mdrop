@@ -1,25 +1,115 @@
-use serde::Serialize;
-use std::sync::Mutex;
-use tauri::State;
-use tokio::sync::oneshot;
-
-use axum::{routing::get, Router};
-use tokio::net::TcpListener;
-//
+use axum::response::Html;
+use axum::{
+    extract::{Path, State as AxumState},
+    http::header,
+    response::{IntoResponse, Response},
+    routing::get,
+    Router,
+};
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceInfo};
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+use tauri::State;
+use tokio::{net::TcpListener, sync::oneshot};
 
-//
-// hello
-//
 async fn hello() -> &'static str {
     "hello, world"
 }
 
-//
-// bonjure
-//
+async fn index(AxumState(state): AxumState<HttpState>) -> Html<String> {
+    let items = {
+        let shared = match state.shared_files.lock() {
+            Ok(shared) => shared,
+            Err(_) => {
+                return Html("<h1>Internal Server Error</h1>".to_string());
+            }
+        };
+
+        shared
+            .files
+            .iter()
+            .map(|(id, path)| {
+                let name = path
+                    .file_name()
+                    .and_then(|v| v.to_str())
+                    .unwrap_or("download");
+
+                format!(r#"<li><a href="/download/{id}">{name}</a></li>"#)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    let body = if items.is_empty() {
+        "<p>No shared files yet.</p>".to_string()
+    } else {
+        format!("<ul>{items}</ul>")
+    };
+
+    Html(format!(
+        r#"<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tetorica Home Server</title>
+</head>
+<body>
+  <h1>Tetorica Home Server</h1>
+  {body}
+</body>
+</html>"#
+    ))
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SharedFileInfo {
+    id: String,
+    name: String,
+    path: String,
+    url: String,
+}
+
+struct SharedFileControl {
+    files: HashMap<String, PathBuf>,
+}
+
+#[derive(Clone)]
+struct HttpState {
+    shared_files: Arc<Mutex<SharedFileControl>>,
+}
+
+async fn download_file(
+    AxumState(state): AxumState<HttpState>,
+    Path(id): Path<String>,
+) -> Result<Response, String> {
+    let path = {
+        let shared = state.shared_files.lock().map_err(|e| e.to_string())?;
+        shared.files.get(&id).cloned().ok_or("not found")?
+    };
+
+    let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
+
+    let filename = path
+        .file_name()
+        .and_then(|v| v.to_str())
+        .unwrap_or("download.bin");
+
+    let headers = [
+        (header::CONTENT_TYPE, "application/octet-stream".to_string()),
+        (
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", filename),
+        ),
+    ];
+
+    Ok((headers, bytes).into_response())
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct BonjourStatus {
     running: bool,
@@ -32,11 +122,17 @@ struct BonjourControl {
     status: BonjourStatus,
     daemon: Option<ServiceDaemon>,
 }
-//
-// http_server
-//
-async fn run_http_server(port: u16, shutdown_rx: oneshot::Receiver<()>) -> Result<(), String> {
-    let app = Router::new().route("/", get(hello));
+
+async fn run_http_server(
+    port: u16,
+    shutdown_rx: oneshot::Receiver<()>,
+    http_state: HttpState,
+) -> Result<(), String> {
+    let app = Router::new()
+        .route("/hello", get(hello))
+        .route("/", get(index))
+        .route("/download/{id}", get(download_file))
+        .with_state(http_state);
 
     let listener = TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
@@ -55,7 +151,6 @@ async fn run_http_server(port: u16, shutdown_rx: oneshot::Receiver<()>) -> Resul
     Ok(())
 }
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     println!("> greet {}", name);
@@ -64,6 +159,10 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let shared_files = Arc::new(Mutex::new(SharedFileControl {
+        files: HashMap::new(),
+    }));
+
     tauri::Builder::default()
         .manage(AppState {
             server: Mutex::new(ServerControl {
@@ -83,16 +182,18 @@ pub fn run() {
                 },
                 daemon: None,
             }),
+            shared_files,
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet,        //
-            start_server, //
+            greet,
+            start_server,
             stop_server,
             get_server_status,
             start_bonjour,
             stop_bonjour,
             get_bonjour_status,
+            share_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -113,13 +214,13 @@ struct ServerControl {
 struct AppState {
     server: Mutex<ServerControl>,
     bonjour: Mutex<BonjourControl>,
+    shared_files: Arc<Mutex<SharedFileControl>>,
 }
 
 #[tauri::command]
 async fn start_server(state: State<'_, AppState>) -> Result<ServerStatus, String> {
     println!("> start_server");
 
-    // 既に起動してるか確認
     {
         let server = state.server.lock().map_err(|e| e.to_string())?;
         if server.status.running {
@@ -128,27 +229,26 @@ async fn start_server(state: State<'_, AppState>) -> Result<ServerStatus, String
     }
 
     let port = 7878;
-
-    // shutdown channel
     let (tx, rx) = oneshot::channel();
 
-    // サーバーをバックグラウンドで起動
+    let http_state = HttpState {
+        shared_files: state.shared_files.clone(),
+    };
+
     tokio::spawn(async move {
-        if let Err(e) = run_http_server(port, rx).await {
+        if let Err(e) = run_http_server(port, rx, http_state).await {
             eprintln!("server error: {e}");
         }
     });
 
-    let mut server = state.server.lock().map_err(|e| e.to_string())?;
-
     let ip = local_ip().map_err(|e| e.to_string())?;
-    let status = ServerStatus {
+
+    let mut server = state.server.lock().map_err(|e| e.to_string())?;
+    server.status = ServerStatus {
         running: true,
         port: Some(port),
         url: Some(format!("http://{}:{port}/", ip)),
     };
-    server.status = status;
-
     server.shutdown_tx = Some(tx);
 
     Ok(server.status.clone())
@@ -184,15 +284,54 @@ async fn stop_server(state: State<'_, AppState>) -> Result<ServerStatus, String>
 
 #[tauri::command]
 async fn get_server_status(state: State<'_, AppState>) -> Result<ServerStatus, String> {
-    println!("> get_server_status");
-
     let server = state.server.lock().map_err(|e| e.to_string())?;
     Ok(server.status.clone())
 }
 
-//
-// bonjure
-//
+#[derive(Debug, Deserialize)]
+struct ShareFileRequest {
+    path: String,
+}
+
+#[tauri::command]
+async fn share_file(
+    state: State<'_, AppState>,
+    req: ShareFileRequest,
+) -> Result<SharedFileInfo, String> {
+    println!("> share_file {}", req.path);
+
+    let path = PathBuf::from(&req.path);
+
+    if !path.is_file() {
+        return Err("not a file".to_string());
+    }
+
+    let name = path
+        .file_name()
+        .ok_or("invalid file name")?
+        .to_string_lossy()
+        .to_string();
+
+    let id = format!("{}", chrono::Utc::now().timestamp_millis());
+
+    let port = {
+        let server = state.server.lock().map_err(|e| e.to_string())?;
+        server.status.port.ok_or("server not running")?
+    };
+
+    {
+        let mut shared = state.shared_files.lock().map_err(|e| e.to_string())?;
+        shared.files.insert(id.clone(), path);
+    }
+
+    Ok(SharedFileInfo {
+        id: id.clone(),
+        name,
+        path: req.path,
+        url: format!("http://tetorica-home.local:{port}/download/{id}"),
+    })
+}
+
 #[tauri::command]
 async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
     println!("> start_bonjour");
@@ -217,20 +356,22 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     let service_name = "Tetorica Home Server";
 
     let daemon = ServiceDaemon::new().map_err(|e| e.to_string())?;
+
     let mut properties = HashMap::new();
     properties.insert("path".to_string(), "/".to_string());
-    let hostname = "tetorica-home.local.";
+
     let ip = local_ip().map_err(|e| e.to_string())?;
 
     let service = ServiceInfo::new(
         service_type,
         service_name,
         "tetorica-home.local.",
-        ip, // ← 第4引数
+        ip,
         port,
         properties,
     )
     .map_err(|e| e.to_string())?;
+
     daemon.register(service).map_err(|e| e.to_string())?;
 
     bonjour.status = BonjourStatus {
@@ -267,8 +408,6 @@ async fn stop_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Strin
 
 #[tauri::command]
 async fn get_bonjour_status(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
-    println!("> get_bonjour_status");
-
     let bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
     Ok(bonjour.status.clone())
 }
