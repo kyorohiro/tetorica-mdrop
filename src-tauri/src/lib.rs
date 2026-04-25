@@ -6,6 +6,7 @@ use tokio::sync::oneshot;
 use axum::{routing::get, Router};
 use tokio::net::TcpListener;
 //
+use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use std::collections::HashMap;
 
@@ -34,14 +35,14 @@ struct BonjourControl {
 //
 // http_server
 //
-async fn run_http_server(port: u16, shutdown_rx: oneshot::Receiver<()>) {
+async fn run_http_server(port: u16, shutdown_rx: oneshot::Receiver<()>) -> Result<(), String> {
     let app = Router::new().route("/", get(hello));
 
-    let listener = TcpListener::bind(format!("127.0.0.1:{port}"))
+    let listener = TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
-    println!("Server started on http://127.0.0.1:{port}");
+    println!("Server started on http://0.0.0.0:{port}");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
@@ -49,7 +50,9 @@ async fn run_http_server(port: u16, shutdown_rx: oneshot::Receiver<()>) {
             println!("Server shutting down...");
         })
         .await
-        .unwrap();
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -130,15 +133,21 @@ async fn start_server(state: State<'_, AppState>) -> Result<ServerStatus, String
     let (tx, rx) = oneshot::channel();
 
     // サーバーをバックグラウンドで起動
-    tokio::spawn(run_http_server(port, rx));
+    tokio::spawn(async move {
+        if let Err(e) = run_http_server(port, rx).await {
+            eprintln!("server error: {e}");
+        }
+    });
 
     let mut server = state.server.lock().map_err(|e| e.to_string())?;
 
-    server.status = ServerStatus {
+    let ip = local_ip().map_err(|e| e.to_string())?;
+    let status = ServerStatus {
         running: true,
         port: Some(port),
-        url: Some(format!("http://127.0.0.1:{port}/")),
+        url: Some(format!("http://{}:{port}/", ip)),
     };
+    server.status = status;
 
     server.shutdown_tx = Some(tx);
 
@@ -210,17 +219,18 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     let daemon = ServiceDaemon::new().map_err(|e| e.to_string())?;
     let mut properties = HashMap::new();
     properties.insert("path".to_string(), "/".to_string());
+    let hostname = "tetorica-home.local.";
+    let ip = local_ip().map_err(|e| e.to_string())?;
+
     let service = ServiceInfo::new(
         service_type,
         service_name,
         "tetorica-home.local.",
-        "",
+        ip, // ← 第4引数
         port,
         properties,
-        //&[("path", "/")],
     )
     .map_err(|e| e.to_string())?;
-
     daemon.register(service).map_err(|e| e.to_string())?;
 
     bonjour.status = BonjourStatus {

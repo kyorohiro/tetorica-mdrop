@@ -25,4 +25,5 @@ serde_json = "1"
 tokio = "1.52.1"
 axum = "0.8.9"
 mdns-sd = "0.19.1"
+local-ip-address = "0.6.12"
 
