@@ -129,11 +129,11 @@ Tetorica Project
 ```
 % sh deploy_mac.sh
 % ~/bin/butler login
-% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.1.0_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.1.0
+% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.1.1_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.1.1
 
-% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.1.0_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.1.0
+% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.1.1_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.1.1
 
-% ~/bin/butler push "tetorica-mdrop_0.1.0_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.1.0
+% ~/bin/butler push "tetorica-mdrop_0.1.1_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.1.1
 ```
 
 # Memo
