@@ -6,7 +6,7 @@ Local Network File Sharing Tool (No Install, No Cloud)
 Tetorica mDrop is a simple tool for sharing files within a local network.
 Just drag and drop files, and any device on the same Wi-Fi can download them through a browser.
 
-![][./src-tauri/icons/Square310x310Logo.png]
+![](./src-tauri/icons/Square310x310Logo.png)
 
 
 ```
