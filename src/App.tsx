@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-import { listen } from "@tauri-apps/api/event";
+//import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -41,7 +41,7 @@ const initialBonjourStatus: BonjourStatus = {
 
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
+//  const [greetMsg, setGreetMsg] = useState("");
   const [serverStatus, setServerStatus] =
     useState<ServerStatus>(initialServerStatus);
   const [bonjourStatus, setBonjourStatus] =
@@ -94,15 +94,15 @@ function App() {
     }
   }
 
-  async function greet() {
-    try {
-      setErrorMsg("");
-      const msg = await invoke<string>("greet", { name: "n" });
-      setGreetMsg(msg);
-    } catch (e) {
-      setErrorMsg(String(e));
-    }
-  }
+  //async function greet() {
+  //  try {
+  //    setErrorMsg("");
+  //    const msg = await invoke<string>("greet", { name: "n" });
+  //    setGreetMsg(msg);
+  //  } catch (e) {
+  //    setErrorMsg(String(e));
+  //  }
+  //}
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
