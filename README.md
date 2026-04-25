@@ -36,7 +36,7 @@ Launch the app and click:
 
 On any device connected to the same Wi-Fi:
 
-[http://tetorica-drop.local:7878/](http://tetorica-drop.local:7878/)
+[http://tetorica-mdrop.local:7878/](http://tetorica-mdrop.local:7878/)
 
 or
 
@@ -129,11 +129,11 @@ Tetorica Project
 ```
 % sh deploy_mac.sh
 % ~/bin/butler login
-% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.1.1_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.1.1
+% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.1.2_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.1.2
 
-% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.1.1_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.1.1
+% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.1.2_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.1.2
 
-% ~/bin/butler push "tetorica-mdrop_0.1.1_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.1.1
+% ~/bin/butler push "tetorica-mdrop_0.1.2_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.1.2
 ```
 
 # Memo
@@ -151,7 +151,7 @@ Timestamp     A/R    Flags  if Domain               Service Type         Instanc
 Lookup Tetorica Home Server._http._tcp.local
 DATE: ---Sun 26 Apr 2026---
  0:46:21.697  ...STARTING...
- 0:46:22.128  Tetorica\032Home\032Server._http._tcp.local. can be reached at tetorica-drop.local.:7878 (interface 11)
+ 0:46:22.128  Tetorica\032Home\032Server._http._tcp.local. can be reached at tetorica-mdrop.local.:7878 (interface 11)
  path=/
  ```
 

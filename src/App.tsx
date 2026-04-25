@@ -288,7 +288,7 @@ function App() {
           <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm">
             <div className="mb-1 text-slate-400">Bonjour URL</div>
             <code className="break-all text-sky-300">
-              http://tetorica-drop.local:7878/
+              http://tetorica-mdrop.local:7878/
             </code>
           </div>
         </section>

@@ -368,7 +368,7 @@ async fn share_file(
         id: id.clone(),
         name,
         path: req.path,
-        url: format!("http://tetorica-drop.local:{port}/download/{id}"),
+        url: format!("http://tetorica-mdrop.local:{port}/download/{id}"),
     })
 }
 
@@ -405,7 +405,7 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     let service = ServiceInfo::new(
         service_type,
         service_name,
-        "tetorica-drop.local.",
+        "tetorica-mdrop.local.",
         ip,
         port,
         properties,
