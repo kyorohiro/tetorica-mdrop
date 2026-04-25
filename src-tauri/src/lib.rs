@@ -21,6 +21,39 @@ async fn hello() -> &'static str {
     "hello, world"
 }
 
+fn content_type_from_path(path: &PathBuf) -> &'static str {
+    match path
+        .extension()
+        .and_then(|v| v.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+        .as_str()
+    {
+        "html" | "htm" => "text/html; charset=utf-8",
+        "txt" => "text/plain; charset=utf-8",
+        "css" => "text/css; charset=utf-8",
+        "js" => "text/javascript; charset=utf-8",
+        "json" => "application/json; charset=utf-8",
+        "pdf" => "application/pdf",
+
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+
+        "zip" => "application/zip",
+        "wasm" => "application/wasm",
+
+        _ => "application/octet-stream",
+    }
+}
+
 async fn index(AxumState(state): AxumState<HttpState>) -> Html<String> {
     let items = {
         let shared = match state.shared_files.lock() {
@@ -99,12 +132,18 @@ async fn download_file(
         .and_then(|v| v.to_str())
         .unwrap_or("download.bin");
 
+    let content_type = content_type_from_path(&path);
+
     let headers = [
-        (header::CONTENT_TYPE, "application/octet-stream".to_string()),
+        (header::CONTENT_TYPE, content_type.to_string()),
         (
             header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{}\"", filename),
+            format!("inline; filename=\"{}\"", filename),
         ),
+        //(
+        //    header::CONTENT_DISPOSITION,
+        //    format!("attachment; filename=\"{}\"", filename),
+        //),
     ];
 
     Ok((headers, bytes).into_response())
@@ -185,6 +224,7 @@ pub fn run() {
             shared_files,
         })
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             start_server,

@@ -4,6 +4,7 @@ import "./App.css";
 
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { open } from "@tauri-apps/plugin-dialog";
 
 type ServerStatus = {
   running: boolean;
@@ -38,6 +39,7 @@ const initialBonjourStatus: BonjourStatus = {
   port: null,
 };
 
+
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
   const [serverStatus, setServerStatus] =
@@ -47,6 +49,36 @@ function App() {
   const [errorMsg, setErrorMsg] = useState("");
   const [sharedFiles, setSharedFiles] = useState<SharedFileInfo[]>([]);
 
+  async function sharePaths(paths: string[]) {
+    try {
+      setErrorMsg("");
+
+      for (const path of paths) {
+        const file = await invoke<SharedFileInfo>("share_file", {
+          req: { path },
+        });
+
+        setSharedFiles((prev) => [file, ...prev]);
+      }
+    } catch (e) {
+      console.error(e);
+      setErrorMsg(String(e));
+    }
+  }
+
+  async function selectFiles() {
+    const selected = await open({
+      multiple: true,
+      directory: false,
+    });
+
+    if (!selected) {
+      return;
+    }
+
+    const paths = Array.isArray(selected) ? selected : [selected];
+    await sharePaths(paths);
+  }
   async function callCommand<T>(
     command: string,
     onSuccess: (ret: T) => void,
@@ -85,13 +117,7 @@ function App() {
       const paths = event.payload.paths;
       console.log(paths);
 
-      for (const path of paths) {
-        const file = await invoke<SharedFileInfo>("share_file", {
-          req: { path },
-        });
-
-        setSharedFiles((prev) => [file, ...prev]);
-      }
+      await sharePaths(paths);
     });
 
     return () => {
@@ -105,7 +131,7 @@ function App() {
         <header className="mb-8">
           <p className="text-sm text-slate-400">Local file sharing prototype</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">
-            Tetorica Home Server
+            Tetorica mDrop
           </h1>
         </header>
 
@@ -115,20 +141,26 @@ function App() {
           </div>
         )}
 
-        <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
-          <h2 className="mb-3 text-lg font-semibold">Greeting</h2>
-          <p className="mb-4 rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-300">
-            {greetMsg || "No greeting yet."}
-          </p>
-          <Button onClick={greet}>Greet</Button>
-        </section>
+        {
+          //<section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
+          //  <h2 className="mb-3 text-lg font-semibold">Greeting</h2>
+          //  <p className="mb-4 rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-300">
+          //    {greetMsg || "No greeting yet."}
+          //  </p>
+          //  <Button onClick={greet}>Greet</Button>
+          //</section>
+        }
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <h2 className="text-lg font-semibold">Shared Files</h2>
 
-          <div className="mt-4 rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300">
-            Drop files here
-          </div>
+          <button
+            type="button"
+            onClick={selectFiles}
+            className="mt-4 w-full rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
+          >
+            Drop files here, or click to select files
+          </button>
 
           <div className="mt-4 space-y-2">
             {sharedFiles.map((file) => (
