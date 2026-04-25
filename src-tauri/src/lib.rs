@@ -5,11 +5,35 @@ use tokio::sync::oneshot;
 
 use axum::{routing::get, Router};
 use tokio::net::TcpListener;
+//
+use mdns_sd::{ServiceDaemon, ServiceInfo};
+use std::collections::HashMap;
 
+//
+// hello
+//
 async fn hello() -> &'static str {
     "hello, world"
 }
 
+//
+// bonjure
+//
+#[derive(Debug, Clone, Serialize)]
+struct BonjourStatus {
+    running: bool,
+    service_name: Option<String>,
+    service_type: Option<String>,
+    port: Option<u16>,
+}
+
+struct BonjourControl {
+    status: BonjourStatus,
+    daemon: Option<ServiceDaemon>,
+}
+//
+// http_server
+//
 async fn run_http_server(port: u16, shutdown_rx: oneshot::Receiver<()>) {
     let app = Router::new().route("/", get(hello));
 
@@ -47,13 +71,25 @@ pub fn run() {
                 },
                 shutdown_tx: None,
             }),
+            bonjour: Mutex::new(BonjourControl {
+                status: BonjourStatus {
+                    running: false,
+                    service_name: None,
+                    service_type: None,
+                    port: None,
+                },
+                daemon: None,
+            }),
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,        //
-            start_server,  //
+            start_server, //
             stop_server,
-            get_server_status
+            get_server_status,
+            start_bonjour,
+            stop_bonjour,
+            get_bonjour_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -73,6 +109,7 @@ struct ServerControl {
 
 struct AppState {
     server: Mutex<ServerControl>,
+    bonjour: Mutex<BonjourControl>,
 }
 
 #[tauri::command]
@@ -108,7 +145,6 @@ async fn start_server(state: State<'_, AppState>) -> Result<ServerStatus, String
     Ok(server.status.clone())
 }
 
-
 #[tauri::command]
 async fn stop_server(state: State<'_, AppState>) -> Result<ServerStatus, String> {
     println!("> stop_server");
@@ -137,11 +173,92 @@ async fn stop_server(state: State<'_, AppState>) -> Result<ServerStatus, String>
     Ok(server.status.clone())
 }
 
-
 #[tauri::command]
 async fn get_server_status(state: State<'_, AppState>) -> Result<ServerStatus, String> {
     println!("> get_server_status");
 
     let server = state.server.lock().map_err(|e| e.to_string())?;
     Ok(server.status.clone())
+}
+
+//
+// bonjure
+//
+#[tauri::command]
+async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
+    println!("> start_bonjour");
+
+    let port = {
+        let server = state.server.lock().map_err(|e| e.to_string())?;
+
+        if !server.status.running {
+            return Err("server is not running".to_string());
+        }
+
+        server.status.port.ok_or("server port is none")?
+    };
+
+    let mut bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
+
+    if bonjour.status.running {
+        return Ok(bonjour.status.clone());
+    }
+
+    let service_type = "_http._tcp.local.";
+    let service_name = "Tetorica Home Server";
+
+    let daemon = ServiceDaemon::new().map_err(|e| e.to_string())?;
+    let mut properties = HashMap::new();
+    properties.insert("path".to_string(), "/".to_string());
+    let service = ServiceInfo::new(
+        service_type,
+        service_name,
+        "tetorica-home.local.",
+        "",
+        port,
+        properties,
+        //&[("path", "/")],
+    )
+    .map_err(|e| e.to_string())?;
+
+    daemon.register(service).map_err(|e| e.to_string())?;
+
+    bonjour.status = BonjourStatus {
+        running: true,
+        service_name: Some(service_name.to_string()),
+        service_type: Some(service_type.to_string()),
+        port: Some(port),
+    };
+
+    bonjour.daemon = Some(daemon);
+
+    Ok(bonjour.status.clone())
+}
+
+#[tauri::command]
+async fn stop_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
+    println!("> stop_bonjour");
+
+    let mut bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
+
+    if let Some(daemon) = bonjour.daemon.take() {
+        let _ = daemon.shutdown();
+    }
+
+    bonjour.status = BonjourStatus {
+        running: false,
+        service_name: None,
+        service_type: None,
+        port: None,
+    };
+
+    Ok(bonjour.status.clone())
+}
+
+#[tauri::command]
+async fn get_bonjour_status(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
+    println!("> get_bonjour_status");
+
+    let bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
+    Ok(bonjour.status.clone())
 }
