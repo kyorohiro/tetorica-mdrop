@@ -15,71 +15,247 @@ type BonjourStatus = {
   port?: number | null;
 };
 
+const initialServerStatus: ServerStatus = {
+  running: false,
+  port: null,
+  url: null,
+};
+
+const initialBonjourStatus: BonjourStatus = {
+  running: false,
+  service_name: null,
+  service_type: null,
+  port: null,
+};
+
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
+  const [serverStatus, setServerStatus] =
+    useState<ServerStatus>(initialServerStatus);
+  const [bonjourStatus, setBonjourStatus] =
+    useState<BonjourStatus>(initialBonjourStatus);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  async function callCommand<T>(
+    command: string,
+    onSuccess: (ret: T) => void,
+  ): Promise<void> {
+    try {
+      setErrorMsg("");
+      const ret = await invoke<T>(command);
+      console.log(command, ret);
+      onSuccess(ret);
+    } catch (e) {
+      console.error(command, e);
+      setErrorMsg(String(e));
+    }
+  }
 
   async function greet() {
-    setGreetMsg(await invoke("greet", { name: "n" }));
-  }
-
-  async function startServer(): Promise<ServerStatus> {
-    const ret = await invoke<ServerStatus>("start_server");
-    console.log(ret);
-    return ret;
-  }
-
-  async function stopServer(): Promise<ServerStatus> {
-    const ret = await invoke<ServerStatus>("stop_server");
-    console.log(ret);
-    return ret;
-  }
-
-  async function getServerStatus(): Promise<ServerStatus> {
-    const ret = await invoke<ServerStatus>("get_server_status");
-    console.log(ret);
-    return ret;
-  }
-
-  async function startBonjour(): Promise<BonjourStatus> {
-    const ret = await invoke<BonjourStatus>("start_bonjour");
-    console.log(ret);
-    return ret;
-  }
-
-  async function stopBonjour(): Promise<BonjourStatus> {
-    const ret = await invoke<BonjourStatus>("stop_bonjour");
-    console.log(ret);
-    return ret;
-  }
-
-  async function getBonjourStatus(): Promise<BonjourStatus> {
-    const ret = await invoke<BonjourStatus>("get_bonjour_status");
-    console.log(ret);
-    return ret;
+    try {
+      setErrorMsg("");
+      const msg = await invoke<string>("greet", { name: "n" });
+      setGreetMsg(msg);
+    } catch (e) {
+      setErrorMsg(String(e));
+    }
   }
 
   return (
-    <main className="container">
-      <h3># Greeting</h3>
-      <div>
-        <div>Hello, World! {greetMsg}</div>
-        <button onClick={greet}>click</button>
-      </div>
+    <main className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
+      <div className="mx-auto max-w-3xl px-6 py-8">
+        <header className="mb-8">
+          <p className="text-sm text-slate-400">Local file sharing prototype</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+            Tetorica Home Server
+          </h1>
+        </header>
 
-      <h3># Server</h3>
-      <div>
-        <button onClick={startServer}>Start</button>
-        <button onClick={stopServer}>Stop</button>
-        <button onClick={getServerStatus}>Status</button>
-      </div>
+        {errorMsg && (
+          <div className="mb-6 rounded-xl border border-red-400/40 bg-red-950/50 p-4 text-sm text-red-100">
+            <span className="font-bold">Error:</span> {errorMsg}
+          </div>
+        )}
 
-      <h3># Bonjour</h3>
-      <div>
-        <button onClick={startBonjour}>Start Bonjour</button>
-        <button onClick={stopBonjour}>Stop Bonjour</button>
-        <button onClick={getBonjourStatus}>Bonjour Status</button>
+        <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
+          <h2 className="mb-3 text-lg font-semibold">Greeting</h2>
+          <p className="mb-4 rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-300">
+            {greetMsg || "No greeting yet."}
+          </p>
+          <Button onClick={greet}>Greet</Button>
+        </section>
+
+        <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold">Server</h2>
+            <Badge active={serverStatus.running} />
+          </div>
+
+          <div className="space-y-2">
+            <StatusRow label="Running" value={serverStatus.running ? "Yes" : "No"} />
+            <StatusRow label="Port" value={serverStatus.port ?? "-"} />
+            <StatusRow
+              label="URL"
+              value={
+                serverStatus.url ? (
+                  <a
+                    className="text-sky-300 underline underline-offset-4 hover:text-sky-200"
+                    href={serverStatus.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {serverStatus.url}
+                  </a>
+                ) : (
+                  "-"
+                )
+              }
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              onClick={() =>
+                callCommand<ServerStatus>("start_server", setServerStatus)
+              }
+              disabled={serverStatus.running}
+            >
+              Start
+            </Button>
+            <Button
+              onClick={() =>
+                callCommand<ServerStatus>("stop_server", setServerStatus)
+              }
+              disabled={!serverStatus.running}
+              variant="secondary"
+            >
+              Stop
+            </Button>
+            <Button
+              onClick={() =>
+                callCommand<ServerStatus>("get_server_status", setServerStatus)
+              }
+              variant="ghost"
+            >
+              Status
+            </Button>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold">Bonjour</h2>
+            <Badge active={bonjourStatus.running} />
+          </div>
+
+          <div className="space-y-2">
+            <StatusRow
+              label="Running"
+              value={bonjourStatus.running ? "Yes" : "No"}
+            />
+            <StatusRow label="Name" value={bonjourStatus.service_name ?? "-"} />
+            <StatusRow label="Type" value={bonjourStatus.service_type ?? "-"} />
+            <StatusRow label="Port" value={bonjourStatus.port ?? "-"} />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              onClick={() =>
+                callCommand<BonjourStatus>("start_bonjour", setBonjourStatus)
+              }
+              disabled={!serverStatus.running || bonjourStatus.running}
+            >
+              Start Bonjour
+            </Button>
+            <Button
+              onClick={() =>
+                callCommand<BonjourStatus>("stop_bonjour", setBonjourStatus)
+              }
+              disabled={!bonjourStatus.running}
+              variant="secondary"
+            >
+              Stop Bonjour
+            </Button>
+            <Button
+              onClick={() =>
+                callCommand<BonjourStatus>(
+                  "get_bonjour_status",
+                  setBonjourStatus,
+                )
+              }
+              variant="ghost"
+            >
+              Bonjour Status
+            </Button>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm">
+            <div className="mb-1 text-slate-400">Bonjour URL</div>
+            <code className="break-all text-sky-300">
+              http://tetorica-home.local:7878/
+            </code>
+          </div>
+        </section>
       </div>
     </main>
+  );
+}
+
+function StatusRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-[110px_1fr] gap-3 text-sm">
+      <div className="text-slate-400">{label}</div>
+      <div className="break-all text-slate-100">{value}</div>
+    </div>
+  );
+}
+
+function Badge({ active }: { active: boolean }) {
+  return (
+    <span
+      className={[
+        "rounded-full px-3 py-1 text-xs font-medium",
+        active
+          ? "bg-emerald-400/15 text-emerald-300 ring-1 ring-emerald-400/30"
+          : "bg-slate-700/60 text-slate-300 ring-1 ring-slate-600",
+      ].join(" ")}
+    >
+      {active ? "Running" : "Stopped"}
+    </span>
+  );
+}
+
+function Button({
+  children,
+  onClick,
+  disabled,
+  variant = "primary",
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "primary" | "secondary" | "ghost";
+}) {
+  const base =
+    "rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40";
+
+  const variants = {
+    primary: "bg-sky-500 text-white hover:bg-sky-400",
+    secondary: "bg-slate-700 text-slate-100 hover:bg-slate-600",
+    ghost:
+      "border border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800",
+  };
+
+  return (
+    <button className={`${base} ${variants[variant]}`} onClick={onClick} disabled={disabled}>
+      {children}
+    </button>
   );
 }
 
