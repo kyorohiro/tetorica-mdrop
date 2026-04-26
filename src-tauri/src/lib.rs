@@ -296,11 +296,12 @@ async fn start_server(
         }
     });
 
+    let ip = local_ip().map_err(|e| e.to_string())?;
     let mut server = state.server.lock().map_err(|e| e.to_string())?;
     server.status = ServerStatus {
         running: true,
         port: Some(port),
-        url: Some(format!("http://{}:{port}/", hostname)),
+        url: Some(format!("http://{}:{port}/", ip)),
         hostname: Some(hostname),
     };
     server.shutdown_tx = Some(tx);
