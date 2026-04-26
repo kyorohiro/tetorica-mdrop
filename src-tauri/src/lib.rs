@@ -20,6 +20,8 @@ use tokio::{
     net::TcpListener,
     sync::{oneshot, watch},
 };
+use tower_http::cors::{Any, CorsLayer};
+use axum::http::Method;
 
 async fn hello() -> &'static str {
     "hello, world"
@@ -172,10 +174,16 @@ async fn run_http_server(
     shutdown_rx: oneshot::Receiver<()>,
     http_state: HttpState,
 ) -> Result<(), String> {
+let cors = CorsLayer::new()
+    .allow_origin(Any)
+    .allow_methods([Method::GET, Method::OPTIONS])
+    .allow_headers(Any);
+
     let app = Router::new()
         .route("/hello", get(hello))
         .route("/", get(index))
         .route("/download/{id}", get(download_file))
+        .layer(cors)
         .with_state(http_state);
 
     let listener = TcpListener::bind(format!("0.0.0.0:{port}"))
