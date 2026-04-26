@@ -41,13 +41,16 @@ const initialBonjourStatus: BonjourStatus = {
 
 
 function App() {
-//  const [greetMsg, setGreetMsg] = useState("");
+  //  const [greetMsg, setGreetMsg] = useState("");
   const [serverStatus, setServerStatus] =
     useState<ServerStatus>(initialServerStatus);
   const [bonjourStatus, setBonjourStatus] =
     useState<BonjourStatus>(initialBonjourStatus);
   const [errorMsg, setErrorMsg] = useState("");
   const [sharedFiles, setSharedFiles] = useState<SharedFileInfo[]>([]);
+  //
+  const [hostname, setHostname] = useState("tetorica-mdrop.local");
+  const [port, setPort] = useState("7878");
 
   async function sharePaths(paths: string[]) {
     try {
@@ -82,10 +85,11 @@ function App() {
   async function callCommand<T>(
     command: string,
     onSuccess: (ret: T) => void,
+    args?: any
   ): Promise<void> {
     try {
       setErrorMsg("");
-      const ret = await invoke<T>(command);
+      const ret = await invoke<T>(command, args);
       console.log(command, ret);
       onSuccess(ret);
     } catch (e) {
@@ -212,7 +216,10 @@ function App() {
           <div className="mt-5 flex flex-wrap gap-2">
             <Button
               onClick={() =>
-                callCommand<ServerStatus>("start_server", setServerStatus)
+                callCommand<ServerStatus>("start_server", setServerStatus, {
+                  hostname: hostname,
+                  port
+                })
               }
               disabled={serverStatus.running}
             >
@@ -288,9 +295,55 @@ function App() {
           <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm">
             <div className="mb-1 text-slate-400">Bonjour URL</div>
             <code className="break-all text-sky-300">
-              http://tetorica-mdrop.local:7878/
+              http://{hostname}:{port}/
             </code>
+            {
+              //<code className="break-all text-sky-300">
+              //  http://tetorica-mdrop.local:7878/
+              //</code>
+            }
           </div>
+        </section>
+        {
+          //
+          //
+          //
+        }
+        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
+          <details>
+            <summary className="cursor-pointer text-sm font-medium text-slate-400 hover:text-slate-200">
+              Advanced
+            </summary>
+
+            <div className="mt-4 space-y-4">
+              <label className="block text-sm">
+                <span className="mb-1 block text-slate-400">Host name</span>
+                <input
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 read-only:opacity-50"
+                  value={hostname}
+                  onChange={(e) => setHostname(e.target.value)}
+                  placeholder="tetorica-mdrop.local"
+                  readOnly={serverStatus.running}
+                />
+              </label>
+
+              <label className="block text-sm">
+                <span className="mb-1 block text-slate-400">Port</span>
+                <input
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 read-only:opacity-50"
+                  value={port}
+                  onChange={(e) => setPort(e.target.value)}
+                  placeholder="7878"
+                  inputMode="numeric"
+                  readOnly={serverStatus.running}
+                />
+              </label>
+
+              <p className="text-xs text-slate-500">
+                Default: tetorica-mdrop.local:7878
+              </p>
+            </div>
+          </details>
         </section>
       </div>
     </main>
