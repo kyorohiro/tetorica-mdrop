@@ -184,11 +184,11 @@ Using the IP address (e.g. http://192.168.x.x:7878/) is more reliable than .loca
 ```
 % sh deploy_mac.sh
 % ~/bin/butler login
-% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.1.8_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.1.8
+% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.1.9_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.1.9
 
-% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.1.8_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.1.8
+% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.1.9_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.1.9
 
-% ~/bin/butler push "tetorica-mdrop_0.1.8_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.1.8
+% ~/bin/butler push "tetorica-mdrop_0.1.9_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.1.9
 ```
 
 # Memo
