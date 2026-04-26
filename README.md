@@ -124,16 +124,71 @@ Tetorica Project
 ```
 
 
+# Q/A
+## Firewall settings (if you cannot connect)
+
+If devices on the same network cannot access Tetorica mDrop, your firewall may be blocking incoming connections.
+
+---
+
+### macOS
+
+1. Open **System Settings**
+2. Go to **Network → Firewall**
+3. Click **Options**
+4. Add Tetorica mDrop to the allowed apps list
+5. Set it to **Allow incoming connections**
+
+For testing, you can temporarily disable the firewall:
+
+```bash
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off
+```
+
+## Windows
+- 1 Open Windows Security
+- 2 Go to Firewall & network protection
+- 3 Click Allow an app through firewall
+- 4 Add Tetorica mDrop (or your app)
+- 5 Enable it for Private networks
+- 6 For testing, you can temporarily disable the firewall:
+
+```
+
+netsh advfirewall set allprofiles state off
+
+```
+
+## macOS: Allow Chrome to access the local network
+
+On macOS, Chrome may be blocked from accessing devices on your local network.
+
+If you cannot open Tetorica mDrop in Chrome, enable local network access:
+
+1. Open **System Settings**
+2. Go to **Privacy & Security**
+3. Select **Local Network**
+4. Find **Google Chrome** and turn it **ON**
+
+After enabling this, restart Chrome and try again.
+
+## Notes
+
+Make sure both devices are on the same Wi-Fi / LAN.
+If curl works but the browser does not, the issue may be browser security (especially Chrome).
+Using the IP address (e.g. http://192.168.x.x:7878/) is more reliable than .local hostname.
+
+
 # Deploy
 
 ```
 % sh deploy_mac.sh
 % ~/bin/butler login
-% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.1.5_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.1.5
+% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.1.6_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.1.6
 
-% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.1.5_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.1.5
+% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.1.6_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.1.6
 
-% ~/bin/butler push "tetorica-mdrop_0.1.5_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.1.5
+% ~/bin/butler push "tetorica-mdrop_0.1.6_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.1.6
 ```
 
 # Memo
