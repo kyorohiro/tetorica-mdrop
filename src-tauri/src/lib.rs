@@ -449,7 +449,8 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
         port,
         properties,
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.to_string())?
+    .enable_addr_auto();
 
     daemon.register(service.clone()).map_err(|e| e.to_string())?;
 
