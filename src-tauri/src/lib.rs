@@ -89,10 +89,10 @@ async fn index(AxumState(state): AxumState<HttpState>) -> Html<String> {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Tetorica Home Server</title>
+  <title>Tetorica mDrop</title>
 </head>
 <body>
-  <h1>Tetorica Home Server</h1>
+  <h1>Tetorica mDrop</h1>
   {body}
 </body>
 </html>"#
@@ -209,6 +209,7 @@ pub fn run() {
                     running: false,
                     port: None,
                     url: None,
+                    hostname: None,
                 },
                 shutdown_tx: None,
             }),
@@ -244,6 +245,7 @@ struct ServerStatus {
     running: bool,
     port: Option<u16>,
     url: Option<String>,
+    hostname: Option<String>,
 }
 
 struct ServerControl {
@@ -257,9 +259,23 @@ struct AppState {
     shared_files: Arc<Mutex<SharedFileControl>>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StartServerRequest {
+    hostname: String,
+    port: String,
+}
+
 #[tauri::command]
-async fn start_server(state: State<'_, AppState>) -> Result<ServerStatus, String> {
+async fn start_server(
+    state: State<'_, AppState>,
+    req: StartServerRequest,
+) -> Result<ServerStatus, String> {
     println!("> start_server");
+
+    let port: u16 = req.port.parse().map_err(|_| "invalid port".to_string())?;
+
+    let hostname = req.hostname.trim().trim_end_matches('/').to_string();
 
     {
         let server = state.server.lock().map_err(|e| e.to_string())?;
@@ -268,7 +284,6 @@ async fn start_server(state: State<'_, AppState>) -> Result<ServerStatus, String
         }
     }
 
-    let port = 7878;
     let (tx, rx) = oneshot::channel();
 
     let http_state = HttpState {
@@ -281,13 +296,12 @@ async fn start_server(state: State<'_, AppState>) -> Result<ServerStatus, String
         }
     });
 
-    let ip = local_ip().map_err(|e| e.to_string())?;
-
     let mut server = state.server.lock().map_err(|e| e.to_string())?;
     server.status = ServerStatus {
         running: true,
         port: Some(port),
-        url: Some(format!("http://{}:{port}/", ip)),
+        url: Some(format!("http://{}:{port}/", hostname)),
+        hostname: Some(hostname),
     };
     server.shutdown_tx = Some(tx);
 
@@ -309,6 +323,7 @@ async fn stop_server(state: State<'_, AppState>) -> Result<ServerStatus, String>
             running: false,
             port: None,
             url: None,
+            hostname: None,
         };
 
         server.shutdown_tx.take()
@@ -354,9 +369,16 @@ async fn share_file(
 
     let id = format!("{}", chrono::Utc::now().timestamp_millis());
 
-    let port = {
+    let (hostname, port) = {
         let server = state.server.lock().map_err(|e| e.to_string())?;
-        server.status.port.ok_or("server not running")?
+        (
+            server
+                .status
+                .hostname
+                .clone()
+                .ok_or("server hostname is none")?,
+            server.status.port.ok_or("server not running")?,
+        )
     };
 
     {
@@ -368,7 +390,7 @@ async fn share_file(
         id: id.clone(),
         name,
         path: req.path,
-        url: format!("http://tetorica-mdrop.local:{port}/download/{id}"),
+        url: format!("http://{hostname}:{port}/download/{id}"),
     })
 }
 
@@ -376,14 +398,16 @@ async fn share_file(
 async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
     println!("> start_bonjour");
 
-    let port = {
+    let (hostname, port) = {
         let server = state.server.lock().map_err(|e| e.to_string())?;
-
-        if !server.status.running {
-            return Err("server is not running".to_string());
-        }
-
-        server.status.port.ok_or("server port is none")?
+        (
+            server
+                .status
+                .hostname
+                .clone()
+                .ok_or("server hostname is none")?,
+            server.status.port.ok_or("server not running")?,
+        )
     };
 
     let mut bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
@@ -393,7 +417,7 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     }
 
     let service_type = "_http._tcp.local.";
-    let service_name = "Tetorica Home Server";
+    let service_name = "Tetorica mDrop";
 
     let daemon = ServiceDaemon::new().map_err(|e| e.to_string())?;
 
@@ -405,7 +429,7 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     let service = ServiceInfo::new(
         service_type,
         service_name,
-        "tetorica-mdrop.local.",
+        &(format!("{}.", hostname)),
         ip,
         port,
         properties,

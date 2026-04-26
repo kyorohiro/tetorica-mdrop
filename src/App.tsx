@@ -5,6 +5,7 @@ import "./App.css";
 //import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useDialog } from "./useDialog";
 
 type ServerStatus = {
   running: boolean;
@@ -51,6 +52,7 @@ function App() {
   //
   const [hostname, setHostname] = useState("tetorica-mdrop.local");
   const [port, setPort] = useState("7878");
+  const dialog = useDialog();
 
   async function sharePaths(paths: string[]) {
     try {
@@ -82,6 +84,7 @@ function App() {
     const paths = Array.isArray(selected) ? selected : [selected];
     await sharePaths(paths);
   }
+
   async function callCommand<T>(
     command: string,
     onSuccess: (ret: T) => void,
@@ -215,19 +218,46 @@ function App() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <Button
-              onClick={() =>
-                callCommand<ServerStatus>("start_server", setServerStatus, {
-                  hostname: hostname,
-                  port
-                })
+              onClick={async () => {
+                if (!hostname.endsWith(".local")) {
+                  dialog.showConfirmDialog({
+                    title: "Failed to start",
+                    body: "require hostname ends with .local",
+                  })
+                  return;
+                }
+                try {
+                  await callCommand<ServerStatus>("start_server", setServerStatus, {
+                    req: {
+                      hostname,
+                      port,
+                    },
+                  })
+                } catch (e) {
+                  dialog.showConfirmDialog({
+                    title: "Error",
+                    body: `${e}`
+                  })
+                }
+              }
               }
               disabled={serverStatus.running}
             >
               Start
             </Button>
             <Button
-              onClick={() =>
-                callCommand<ServerStatus>("stop_server", setServerStatus)
+              onClick={async () => {
+                //
+                try {
+                  await callCommand<ServerStatus>("stop_server", setServerStatus)
+                  await callCommand<BonjourStatus>("stop_bonjour", setBonjourStatus)
+                } catch (e) {
+                  dialog.showConfirmDialog({
+                    title: "Error",
+                    body: `${e}`
+                  })
+                }
+              }
               }
               disabled={!serverStatus.running}
               variant="secondary"
@@ -235,8 +265,16 @@ function App() {
               Stop
             </Button>
             <Button
-              onClick={() =>
-                callCommand<ServerStatus>("get_server_status", setServerStatus)
+              onClick={async () => {
+                try {
+                  await callCommand<ServerStatus>("get_server_status", setServerStatus)
+                } catch (e) {
+                  dialog.showConfirmDialog({
+                    title: "Error",
+                    body: `${e}`
+                  })
+                }
+              }
               }
               variant="ghost"
             >
@@ -263,28 +301,51 @@ function App() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <Button
-              onClick={() =>
-                callCommand<BonjourStatus>("start_bonjour", setBonjourStatus)
+              onClick={async () => {
+                try {
+                  await callCommand<BonjourStatus>("start_bonjour", setBonjourStatus)
+                } catch (e) {
+                  dialog.showConfirmDialog({
+                    title: "Error",
+                    body: `${e}`
+                  })
+                }
+              }
               }
               disabled={!serverStatus.running || bonjourStatus.running}
             >
               Start Bonjour
             </Button>
             <Button
-              onClick={() =>
-                callCommand<BonjourStatus>("stop_bonjour", setBonjourStatus)
-              }
+              onClick={async () => {
+                try {
+                  await callCommand<BonjourStatus>("stop_bonjour", setBonjourStatus)
+                } catch (e) {
+                  dialog.showConfirmDialog({
+                    title: "Error",
+                    body: `${e}`
+                  })
+                }
+              }}
               disabled={!bonjourStatus.running}
               variant="secondary"
             >
               Stop Bonjour
             </Button>
             <Button
-              onClick={() =>
-                callCommand<BonjourStatus>(
-                  "get_bonjour_status",
-                  setBonjourStatus,
-                )
+              onClick={async () => {
+                try {
+                  await callCommand<BonjourStatus>(
+                    "get_bonjour_status",
+                    setBonjourStatus,
+                  )
+                } catch (e) {
+                  dialog.showConfirmDialog({
+                    title: "Error",
+                    body: `${e}`
+                  })
+                }
+              }
               }
               variant="ghost"
             >
