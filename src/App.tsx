@@ -98,6 +98,7 @@ function App() {
     } catch (e) {
       console.error(command, e);
       setErrorMsg(String(e));
+      throw e;
     }
   }
 
