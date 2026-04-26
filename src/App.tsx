@@ -11,6 +11,7 @@ type ServerStatus = {
   running: boolean;
   port?: number | null;
   url?: string | null;
+  ips?: string[]| null;
 };
 
 type BonjourStatus = {
@@ -213,6 +214,12 @@ function App() {
                 ) : (
                   "-"
                 )
+              }
+            />
+            <StatusRow
+              label="IP"
+              value={
+                    (serverStatus.ips ?? []).join(",")
               }
             />
           </div>

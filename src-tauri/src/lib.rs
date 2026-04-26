@@ -22,10 +22,34 @@ use tokio::{
 };
 use tower_http::cors::{Any, CorsLayer};
 use axum::http::Method;
+use if_addrs::get_if_addrs;
 
 async fn hello() -> &'static str {
     "hello, world"
 }
+
+fn list_ips() -> Vec<String> {
+    let mut result = Vec::new();
+
+    if let Ok(addrs) = get_if_addrs() {
+        for iface in addrs {
+            // IPv4だけに絞る
+            if let std::net::IpAddr::V4(ipv4) = iface.ip() {
+                // localhostは除外
+                if !ipv4.is_loopback() {
+                    result.push(format!(
+                        "{} ({})",
+                        ipv4,
+                        iface.name
+                    ));
+                }
+            }
+        }
+    }
+
+    result
+}
+
 
 fn content_type_from_path(path: &PathBuf) -> &'static str {
     match path
@@ -223,6 +247,7 @@ pub fn run() {
                     port: None,
                     url: None,
                     hostname: None,
+                    ips: None,
                 },
                 shutdown_tx: None,
             }),
@@ -260,6 +285,7 @@ struct ServerStatus {
     port: Option<u16>,
     url: Option<String>,
     hostname: Option<String>,
+    ips: Option<Vec<String>>,
 }
 
 struct ServerControl {
@@ -317,6 +343,7 @@ async fn start_server(
         port: Some(port),
         url: Some(format!("http://{}:{port}/", ip)),
         hostname: Some(hostname),
+        ips: Some(list_ips())
     };
     server.shutdown_tx = Some(tx);
 
@@ -339,6 +366,7 @@ async fn stop_server(state: State<'_, AppState>) -> Result<ServerStatus, String>
             port: None,
             url: None,
             hostname: None,
+            ips: None
         };
 
         server.shutdown_tx.take()
