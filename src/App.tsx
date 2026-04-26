@@ -11,7 +11,7 @@ type ServerStatus = {
   running: boolean;
   port?: number | null;
   url?: string | null;
-  ips?: string[]| null;
+  ips?: string[] | null;
 };
 
 type BonjourStatus = {
@@ -54,6 +54,7 @@ function App() {
   const [hostname, setHostname] = useState("tetorica-mdrop.local");
   const [port, setPort] = useState("7878");
   const dialog = useDialog();
+  const [localOnly, setLocalOnly] = useState(true);
 
   async function sharePaths(paths: string[]) {
     try {
@@ -219,7 +220,7 @@ function App() {
             <StatusRow
               label="IP"
               value={
-                    (serverStatus.ips ?? []).join(",")
+                (serverStatus.ips ?? []).join(",")
               }
             />
           </div>
@@ -408,10 +409,31 @@ function App() {
                 />
               </label>
 
+
+              <label className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-700 bg-slate-950"
+                  checked={localOnly}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked;
+                    setLocalOnly(enabled);
+                    await invoke("set_local_only", { enabled });
+                  }}
+                />
+                <span className="text-slate-300">Local only</span>
+              </label>
+
+              <p className="text-xs text-slate-500">
+                Allow access only from local/private network addresses.
+              </p>
               <p className="text-xs text-slate-500">
                 Default: tetorica-mdrop.local:7878
               </p>
             </div>
+            {
+
+            }
           </details>
         </section>
       </div>

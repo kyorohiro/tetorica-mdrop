@@ -67,6 +67,28 @@ async fn local_only_middleware(
 
     Ok(next.run(req).await)
 }
+
+async fn access_guard_middleware(
+    AxumState(state): AxumState<HttpState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let local_only = {
+        let server = state
+            .server
+            .lock()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        server.local_only
+    };
+
+    if local_only && !is_local_ip(addr.ip()) {
+        println!("blocked non-local access: {}", addr);
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    Ok(next.run(req).await)
+}
 async fn hello() -> &'static str {
     "hello, world"
 }
@@ -182,6 +204,7 @@ struct SharedFileControl {
 #[derive(Clone)]
 struct HttpState {
     shared_files: Arc<Mutex<SharedFileControl>>,
+    server: Arc<Mutex<ServerControl>>,
 }
 
 async fn download_file(
@@ -245,7 +268,10 @@ async fn run_http_server(
         .route("/hello", get(hello))
         .route("/", get(index))
         .route("/download/{id}", get(download_file))
-        .layer(middleware::from_fn(local_only_middleware)) // ←追加
+        .route_layer(middleware::from_fn_with_state(
+            http_state.clone(),
+            access_guard_middleware,
+        ))
         .layer(cors)
         .with_state(http_state);
 
@@ -275,6 +301,13 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+async fn set_local_only(state: State<'_, AppState>, enabled: bool) -> Result<ServerStatus, String> {
+    let mut server = state.server.lock().map_err(|e| e.to_string())?;
+    server.local_only = enabled;
+    Ok(server.status.clone())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let shared_files = Arc::new(Mutex::new(SharedFileControl {
@@ -283,7 +316,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(AppState {
-            server: Mutex::new(ServerControl {
+            server: Arc::new(Mutex::new(ServerControl {
                 status: ServerStatus {
                     running: false,
                     port: None,
@@ -292,7 +325,8 @@ pub fn run() {
                     ips: None,
                 },
                 shutdown_tx: None,
-            }),
+                local_only: true,
+            })),
             bonjour: Mutex::new(BonjourControl {
                 status: BonjourStatus {
                     running: false,
@@ -316,6 +350,7 @@ pub fn run() {
             stop_bonjour,
             get_bonjour_status,
             share_file,
+            set_local_only,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -333,10 +368,11 @@ struct ServerStatus {
 struct ServerControl {
     status: ServerStatus,
     shutdown_tx: Option<oneshot::Sender<()>>,
+    local_only: bool,
 }
 
 struct AppState {
-    server: Mutex<ServerControl>,
+    server: Arc<Mutex<ServerControl>>,
     bonjour: Mutex<BonjourControl>,
     shared_files: Arc<Mutex<SharedFileControl>>,
 }
@@ -370,6 +406,7 @@ async fn start_server(
 
     let http_state = HttpState {
         shared_files: state.shared_files.clone(),
+        server: state.server.clone(),
     };
 
     tokio::spawn(async move {
