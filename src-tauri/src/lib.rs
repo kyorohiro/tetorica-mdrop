@@ -9,13 +9,17 @@ use axum::{
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use std::{
     collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 use tauri::State;
-use tokio::{net::TcpListener, sync::oneshot};
+use tokio::{
+    net::TcpListener,
+    sync::{oneshot, watch},
+};
 
 async fn hello() -> &'static str {
     "hello, world"
@@ -160,6 +164,7 @@ struct BonjourStatus {
 struct BonjourControl {
     status: BonjourStatus,
     daemon: Option<ServiceDaemon>,
+    reannounce_stop_tx: Option<watch::Sender<bool>>,
 }
 
 async fn run_http_server(
@@ -221,6 +226,7 @@ pub fn run() {
                     port: None,
                 },
                 daemon: None,
+                reannounce_stop_tx: None,
             }),
             shared_files,
         })
@@ -437,7 +443,35 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     )
     .map_err(|e| e.to_string())?;
 
-    daemon.register(service).map_err(|e| e.to_string())?;
+    daemon.register(service.clone()).map_err(|e| e.to_string())?;
+
+    let (stop_tx, mut stop_rx) = watch::channel(false);
+
+    let daemon_for_task = daemon.clone();
+    let service_for_task = service.clone();
+
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(30)) => {
+                    match daemon_for_task.register(service_for_task.clone()) {
+                        Ok(_) => {
+                            println!("mDNS re-announce");
+                        }
+                        Err(e) => {
+                            eprintln!("mDNS re-announce error: {e}");
+                        }
+                    }
+                }
+                changed = stop_rx.changed() => {
+                    if changed.is_err() || *stop_rx.borrow() {
+                        println!("mDNS re-announce stopped");
+                        break;
+                    }
+                }
+            }
+        }
+    });
 
     bonjour.status = BonjourStatus {
         running: true,
@@ -447,6 +481,7 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     };
 
     bonjour.daemon = Some(daemon);
+    bonjour.reannounce_stop_tx = Some(stop_tx);
 
     Ok(bonjour.status.clone())
 }
@@ -456,6 +491,10 @@ async fn stop_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Strin
     println!("> stop_bonjour");
 
     let mut bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
+
+    if let Some(tx) = bonjour.reannounce_stop_tx.take() {
+        let _ = tx.send(true);
+    }
 
     if let Some(daemon) = bonjour.daemon.take() {
         let _ = daemon.shutdown();
