@@ -1,215 +1,231 @@
 <!doctype html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tetorica mDrop</title>
     <style>
-      body {
-        margin: 0;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #020617;
-        color: #e2e8f0;
-        line-height: 1.7;
-      }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #020617;
+            color: #e2e8f0;
+            line-height: 1.7;
+        }
 
-      main {
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 48px 24px;
-      }
+        main {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 48px 24px;
+        }
 
-      .hero {
-        text-align: center;
-        margin-bottom: 48px;
-      }
+        .hero {
+            text-align: center;
+            margin-bottom: 48px;
+        }
 
-      .icon {
-        width: 180px;
-        height: 180px;
-        border-radius: 32px;
-        margin-bottom: 24px;
-      }
+        .icon {
+            width: 180px;
+            height: 180px;
+            border-radius: 32px;
+            margin-bottom: 24px;
+        }
 
-      h1 {
-        font-size: 42px;
-        margin: 0;
-      }
+        h1 {
+            font-size: 42px;
+            margin: 0;
+        }
 
-      .subtitle {
-        color: #38bdf8;
-        font-size: 18px;
-        margin-top: 8px;
-      }
+        .subtitle {
+            color: #38bdf8;
+            font-size: 18px;
+            margin-top: 8px;
+        }
 
-      section {
-        border: 1px solid #1e293b;
-        background: #0f172a;
-        border-radius: 20px;
-        padding: 24px;
-        margin: 20px 0;
-      }
+        section {
+            border: 1px solid #1e293b;
+            background: #0f172a;
+            border-radius: 20px;
+            padding: 24px;
+            margin: 20px 0;
+        }
 
-      h2 {
-        margin-top: 0;
-        color: #f8fafc;
-      }
+        h2 {
+            margin-top: 0;
+            color: #f8fafc;
+        }
 
-      a {
-        color: #38bdf8;
-      }
+        a {
+            color: #38bdf8;
+        }
 
-      code {
-        background: #020617;
-        padding: 2px 6px;
-        border-radius: 6px;
-      }
+        code {
+            background: #020617;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
 
-      ul {
-        padding-left: 22px;
-      }
+        ul {
+            padding-left: 22px;
+        }
 
-      .url {
-        font-size: 18px;
-        word-break: break-all;
-      }
+        .url {
+            font-size: 18px;
+            word-break: break-all;
+        }
 
-           .button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 48px;
-        padding: 0 18px;
-        border-radius: 16px;
-        font-weight: 700;
-        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
-      }
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 0 18px;
+            border-radius: 16px;
+            font-weight: 700;
+            transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+        }
 
-      .button:hover {
-        transform: translateY(-1px);
-      }
+        .button:hover {
+            transform: translateY(-1px);
+        }
 
-      .button.primary {
-        background: linear-gradient(135deg, var(--accent), var(--accent-2));
-        color: white;
-      }
+        .button.primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: white;
+        }
 
-      .button.secondary {
-        border: 1px solid var(--panel-border);
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--text);
-      }
+        .button.secondary {
+            border: 1px solid var(--panel-border);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+        }
     </style>
-  </head>
+</head>
 
-  <body>
+<body>
     <main>
-      <div class="hero">
-        <img class="icon" src="./assets/icon.png" alt="Tetorica mDrop icon" />
-        <h1>Tetorica mDrop</h1>
-        <div class="subtitle">Local Network File Sharing Tool</div>
-        <p>No install on clients. No cloud. Just drag, drop, and share.</p>
-      </div>
+        <div class="hero">
+            <img class="icon" src="./assets/icon.png" alt="Tetorica mDrop icon" />
+            <h1>Tetorica mDrop</h1>
+            <div class="subtitle">Local Network File Sharing Tool</div>
+            <p>No install on clients. No cloud. Just drag, drop, and share.</p>
+        </div>
         <section class="hero">
-          <div class="panel hero-copy">
-            <div class="actions" id="links">
-              <a class="button primary" href="https://kyorohiro.itch.io/tetorica-mdrop">Itch.io Page</a>
-              <a
-                class="button secondary"
-                href="https://github.com/kyorohiro/tetorica-mdrop"
-                target="_blank"
-                rel="noreferrer"
-              >
-                View on GitHub
-              </a>
+            <div class="panel hero-copy">
+                <div class="actions" id="links">
+                    <a class="button primary" href="https://kyorohiro.itch.io/tetorica-mdrop">Itch.io Page</a>
+                    <a class="button secondary" href="https://github.com/kyorohiro/tetorica-mdrop" target="_blank"
+                        rel="noreferrer">
+                        View on GitHub
+                    </a>
+                </div>
+
+
             </div>
-
-
-          </div>
         </section>
-      <section>
-        <h2>Features</h2>
-        <ul>
-          <li>Drag &amp; Drop file sharing</li>
-          <li>Click to select files</li>
-          <li>Accessible from any browser</li>
-          <li>Bonjour / mDNS automatic discovery</li>
-          <li>Works on iPhone, iPad, Windows, and Mac</li>
-          <li>Fast local network transfer</li>
-        </ul>
-      </section>
+        <section>
+            <h2>Features</h2>
+            <ul>
+                <li>Drag &amp; Drop file sharing</li>
+                <li>Click to select files</li>
+                <li>Accessible from any browser</li>
+                <li>Bonjour / mDNS automatic discovery</li>
+                <li>Works on iPhone, iPad, Windows, and Mac</li>
+                <li>Fast local network transfer</li>
+            </ul>
+        </section>
 
-      <section>
-        <h2>Quick Start</h2>
-        <ol>
-          <li>Launch the app and click <strong>Start Server</strong>.</li>
-          <li>Click <strong>Start Bonjour</strong>.</li>
-          <li>Open this URL on any device connected to the same Wi-Fi:</li>
-        </ol>
+        <section>
+            <h2>Quick Start</h2>
+            <ol>
+                <li>Launch the app and click <strong>Start Server</strong>.</li>
+                <li>Click <strong>Start Bonjour</strong>.</li>
+                <li>Open this URL on any device connected to the same Wi-Fi:</li>
+            </ol>
 
-        <p class="url">
-          <a href="http://tetorica-mdrop.local:7878/">
-            http://tetorica-mdrop.local:7878/
-          </a>
-        </p>
+            <p class="url">
+                <a href="http://tetorica-mdrop.local:7878/">
+                    http://tetorica-mdrop.local:7878/
+                </a>
+            </p>
 
-        <p>Or use:</p>
+            <p>Or use:</p>
 
-        <p><code>http://&lt;your-ip-address&gt;:7878/</code></p>
-      </section>
+            <p><code>http://&lt;your-ip-address&gt;:7878/</code></p>
+        </section>
 
-      <section>
-        <h2>How It Works</h2>
-        <p>
-          Drop a file on your Mac, open the URL on your phone or another device,
-          then select the file and download it.
-        </p>
-        <p>No accounts, no uploads, no cloud.</p>
-      </section>
+        <section>
+            <h2>How It Works</h2>
+            <p>
+                Drop a file on your Mac, open the URL on your phone or another device,
+                then select the file and download it.
+            </p>
+            <p>No accounts, no uploads, no cloud.</p>
+        </section>
 
-      <section>
-        <h2>Why Tetorica mDrop?</h2>
+        <section>
+            <h2>Why Tetorica mDrop?</h2>
 
-        <h3>Simpler than SMB</h3>
-        <ul>
-          <li>No permissions or credentials</li>
-          <li>No OS-specific setup</li>
-          <li>No path configuration</li>
-        </ul>
+            <h3>Simpler than SMB</h3>
+            <ul>
+                <li>No permissions or credentials</li>
+                <li>No OS-specific setup</li>
+                <li>No path configuration</li>
+            </ul>
 
-        <h3>Faster than Cloud</h3>
-        <ul>
-          <li>No internet required</li>
-          <li>Runs entirely within your local network</li>
-        </ul>
+            <h3>Faster than Cloud</h3>
+            <ul>
+                <li>No internet required</li>
+                <li>Runs entirely within your local network</li>
+            </ul>
 
-        <h3>Perfect for training sessions and events</h3>
-        <ul>
-          <li>Easy distribution to multiple participants</li>
-          <li>No setup on client devices</li>
-          <li>Minimal troubleshooting</li>
-        </ul>
-      </section>
+            <h3>Perfect for training sessions and events</h3>
+            <ul>
+                <li>Easy distribution to multiple participants</li>
+                <li>No setup on client devices</li>
+                <li>Minimal troubleshooting</li>
+            </ul>
+        </section>
 
-      <section>
-        <h2>Limitations</h2>
-        <ul>
-          <li>Performance depends on local network conditions</li>
-          <li>Large files and many simultaneous downloads may slow down</li>
-          <li>Currently single-node distribution, not P2P yet</li>
-        </ul>
-      </section>
+        <section>
+            <h2>Limitations</h2>
+            <ul>
+                <li>Performance depends on local network conditions</li>
+                <li>Large files and many simultaneous downloads may slow down</li>
+                <li>Currently single-node distribution, not P2P yet</li>
+            </ul>
+        </section>
 
-      <section>
-        <h2>Tech Stack</h2>
-        <ul>
-          <li>Tauri</li>
-          <li>Axum</li>
-          <li>Tokio</li>
-          <li>Tailwind CSS</li>
-          <li>Bonjour / mDNS</li>
-        </ul>
-      </section>
+        <section>
+            <h2>Tech Stack</h2>
+            <ul>
+                <li>Tauri</li>
+                <li>Axum</li>
+                <li>Tokio</li>
+                <li>Tailwind CSS</li>
+                <li>Bonjour / mDNS</li>
+            </ul>
+        </section>
+
+        <section>
+            <div style="margin-top: 16px; font-size: 14px; color: #fff;">
+                <h3>Troubleshooting</h3>
+                <ul>
+                    <li>If you cannot access this page from another device:</li>
+                    <li>• Make sure both devices are on the same Wi-Fi / LAN</li>
+                    <li>• Try using the IP address instead of the .local hostname</li>
+                    <li>• Try another browser (Safari / Firefox)</li>
+                    <li>• Check your firewall settings</li>
+                    <li>• On macOS: enable Local Network access for Chrome</li>
+                </ul>
+
+                <p style="margin-top: 8px;">
+                    macOS: System Settings → Privacy & Security → Local Network → Enable "Google Chrome"
+                </p>
+            </div>
+        </section>
     </main>
-  </body>
+</body>
+
 </html>
