@@ -1,4 +1,11 @@
+use axum::http::Method;
 use axum::response::Html;
+use axum::{
+    body::Body,
+    extract::ConnectInfo,
+    http::{Request, StatusCode},
+    middleware::{self, Next},
+};
 use axum::{
     extract::{Path, State as AxumState},
     http::header,
@@ -6,9 +13,12 @@ use axum::{
     routing::get,
     Router,
 };
+use if_addrs::get_if_addrs;
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 use std::{
     collections::HashMap,
@@ -21,9 +31,42 @@ use tokio::{
     sync::{oneshot, watch},
 };
 use tower_http::cors::{Any, CorsLayer};
-use axum::http::Method;
-use if_addrs::get_if_addrs;
 
+pub fn is_local_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => is_private_or_local_v4(v4),
+        IpAddr::V6(v6) => is_private_or_local_v6(v6),
+    }
+}
+
+fn is_private_or_local_v4(ip: Ipv4Addr) -> bool {
+    ip.is_loopback() ||      // 127.0.0.0/8
+    ip.is_private() ||       // 10/8, 172.16/12, 192.168/16
+    ip.is_link_local() // 169.254.0.0/16
+}
+
+fn is_private_or_local_v6(ip: Ipv6Addr) -> bool {
+    ip.is_loopback() ||      // ::1
+    ip.is_unicast_link_local() || // fe80::/10
+    is_unique_local_v6(ip) // fc00::/7
+}
+
+fn is_unique_local_v6(ip: Ipv6Addr) -> bool {
+    (ip.segments()[0] & 0xfe00) == 0xfc00
+}
+
+async fn local_only_middleware(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    if !is_local_ip(addr.ip()) {
+        println!("blocked non-local access: {}", addr);
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    Ok(next.run(req).await)
+}
 async fn hello() -> &'static str {
     "hello, world"
 }
@@ -37,11 +80,7 @@ fn list_ips() -> Vec<String> {
             if let std::net::IpAddr::V4(ipv4) = iface.ip() {
                 // localhostは除外
                 if !ipv4.is_loopback() {
-                    result.push(format!(
-                        "{} ({})",
-                        ipv4,
-                        iface.name
-                    ));
+                    result.push(format!("{} ({})", ipv4, iface.name));
                 }
             }
         }
@@ -49,7 +88,6 @@ fn list_ips() -> Vec<String> {
 
     result
 }
-
 
 fn content_type_from_path(path: &PathBuf) -> &'static str {
     match path
@@ -198,15 +236,16 @@ async fn run_http_server(
     shutdown_rx: oneshot::Receiver<()>,
     http_state: HttpState,
 ) -> Result<(), String> {
-let cors = CorsLayer::new()
-    .allow_origin(Any)
-    .allow_methods([Method::GET, Method::OPTIONS])
-    .allow_headers(Any);
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::OPTIONS])
+        .allow_headers(Any);
 
     let app = Router::new()
         .route("/hello", get(hello))
         .route("/", get(index))
         .route("/download/{id}", get(download_file))
+        .layer(middleware::from_fn(local_only_middleware)) // ←追加
         .layer(cors)
         .with_state(http_state);
 
@@ -216,13 +255,16 @@ let cors = CorsLayer::new()
 
     println!("Server started on http://0.0.0.0:{port}");
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(async {
-            shutdown_rx.await.ok();
-            println!("Server shutting down...");
-        })
-        .await
-        .map_err(|e| e.to_string())?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(async {
+        shutdown_rx.await.ok();
+        println!("Server shutting down...");
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -343,7 +385,7 @@ async fn start_server(
         port: Some(port),
         url: Some(format!("http://{}:{port}/", ip)),
         hostname: Some(hostname),
-        ips: Some(list_ips())
+        ips: Some(list_ips()),
     };
     server.shutdown_tx = Some(tx);
 
@@ -366,7 +408,7 @@ async fn stop_server(state: State<'_, AppState>) -> Result<ServerStatus, String>
             port: None,
             url: None,
             hostname: None,
-            ips: None
+            ips: None,
         };
 
         server.shutdown_tx.take()
@@ -460,7 +502,7 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     }
 
     let service_type = "_http._tcp.local.";
-    let service_name = "Tetorica mDrop";
+    let service_name = format!("Tetorica mDrop ({hostname})");
 
     let daemon = ServiceDaemon::new().map_err(|e| e.to_string())?;
 
@@ -471,7 +513,7 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
 
     let service = ServiceInfo::new(
         service_type,
-        service_name,
+        &service_name,
         &(format!("{}.", hostname)),
         ip,
         port,
@@ -480,7 +522,9 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
     .map_err(|e| e.to_string())?
     .enable_addr_auto();
 
-    daemon.register(service.clone()).map_err(|e| e.to_string())?;
+    daemon
+        .register(service.clone())
+        .map_err(|e| e.to_string())?;
 
     let (stop_tx, mut stop_rx) = watch::channel(false);
 
