@@ -13,6 +13,8 @@ use axum::{
     routing::get,
     Router,
 };
+use axum::http::{HeaderMap};
+
 use if_addrs::get_if_addrs;
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceInfo};
@@ -31,6 +33,11 @@ use tokio::{
     sync::{oneshot, watch},
 };
 use tower_http::cors::{Any, CorsLayer};
+//
+
+
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio_util::io::ReaderStream;
 
 pub fn is_local_ip(ip: IpAddr) -> bool {
     match ip {
@@ -89,6 +96,59 @@ async fn access_guard_middleware(
 
     Ok(next.run(req).await)
 }
+
+fn parse_range_header(range: &str, size: u64) -> Result<(u64, u64), ()> {
+    if !range.starts_with("bytes=") {
+        return Err(());
+    }
+
+    let value = &range["bytes=".len()..];
+
+    // 複数 Range は今回は未対応
+    if value.contains(',') {
+        return Err(());
+    }
+
+    let Some((start_text, end_text)) = value.split_once('-') else {
+        return Err(());
+    };
+
+    if size == 0 {
+        return Err(());
+    }
+
+    if start_text.is_empty() {
+        // bytes=-500
+        let suffix_len: u64 = end_text.parse().map_err(|_| ())?;
+        if suffix_len == 0 {
+            return Err(());
+        }
+
+        let start = size.saturating_sub(suffix_len);
+        let end = size - 1;
+        return Ok((start, end));
+    }
+
+    let start: u64 = start_text.parse().map_err(|_| ())?;
+
+    if start >= size {
+        return Err(());
+    }
+
+    let end = if end_text.is_empty() {
+        size - 1
+    } else {
+        let end: u64 = end_text.parse().map_err(|_| ())?;
+        end.min(size - 1)
+    };
+
+    if end < start {
+        return Err(());
+    }
+
+    Ok((start, end))
+}
+
 async fn hello() -> &'static str {
     "hello, world"
 }
@@ -210,13 +270,26 @@ struct HttpState {
 async fn download_file(
     AxumState(state): AxumState<HttpState>,
     Path(id): Path<String>,
-) -> Result<Response, String> {
+    headers: HeaderMap,
+) -> Result<Response, (StatusCode, String)> {
     let path = {
-        let shared = state.shared_files.lock().map_err(|e| e.to_string())?;
-        shared.files.get(&id).cloned().ok_or("not found")?
+        let shared = state
+            .shared_files
+            .lock()
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        shared
+            .files
+            .get(&id)
+            .cloned()
+            .ok_or((StatusCode::NOT_FOUND, "not found".to_string()))?
     };
 
-    let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
+    let metadata = tokio::fs::metadata(&path)
+        .await
+        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+
+    let file_size = metadata.len();
 
     let filename = path
         .file_name()
@@ -225,19 +298,67 @@ async fn download_file(
 
     let content_type = content_type_from_path(&path);
 
-    let headers = [
-        (header::CONTENT_TYPE, content_type.to_string()),
-        (
+    let mut file = tokio::fs::File::open(&path)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let range = headers
+        .get(header::RANGE)
+        .and_then(|v| v.to_str().ok());
+
+    if let Some(range) = range {
+        let (start, end) = match parse_range_header(range, file_size) {
+            Ok(v) => v,
+            Err(_) => {
+                return Response::builder()
+                    .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                    .header(header::ACCEPT_RANGES, "bytes")
+                    .header(header::CONTENT_RANGE, format!("bytes */{file_size}"))
+                    .body(Body::empty())
+                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+            }
+        };
+
+        let len = end - start + 1;
+
+        file.seek(std::io::SeekFrom::Start(start))
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        let stream = ReaderStream::new(file.take(len));
+        let body = Body::from_stream(stream);
+
+        return Response::builder()
+            .status(StatusCode::PARTIAL_CONTENT)
+            .header(header::CONTENT_TYPE, content_type)
+            .header(header::ACCEPT_RANGES, "bytes")
+            .header(header::CONTENT_LENGTH, len.to_string())
+            .header(
+                header::CONTENT_RANGE,
+                format!("bytes {start}-{end}/{file_size}"),
+            )
+            .header(
+                header::CONTENT_DISPOSITION,
+                format!("inline; filename=\"{}\"", filename),
+            )
+            .body(body)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+    }
+
+    let stream = ReaderStream::new(file);
+    let body = Body::from_stream(stream);
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::CONTENT_LENGTH, file_size.to_string())
+        .header(
             header::CONTENT_DISPOSITION,
             format!("inline; filename=\"{}\"", filename),
-        ),
-        //(
-        //    header::CONTENT_DISPOSITION,
-        //    format!("attachment; filename=\"{}\"", filename),
-        //),
-    ];
-
-    Ok((headers, bytes).into_response())
+        )
+        .body(body)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 #[derive(Debug, Clone, Serialize)]

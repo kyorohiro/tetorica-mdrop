@@ -4261,7 +4261,7 @@ dependencies = [
 
 [[package]]
 name = "tetorica-mdrop"
-version = "0.1.9"
+version = "0.2.1"
 dependencies = [
  "axum",
  "chrono",
@@ -4275,6 +4275,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tokio",
+ "tokio-util",
  "tower-http",
 ]
 
