@@ -1,6 +1,7 @@
-mod hello;
 mod bonjour;
+mod hello;
 
+use axum::http::HeaderMap;
 use axum::http::Method;
 use axum::response::Html;
 use axum::{
@@ -16,7 +17,6 @@ use axum::{
     routing::get,
     Router,
 };
-use axum::http::{HeaderMap};
 
 use if_addrs::get_if_addrs;
 use local_ip_address::local_ip;
@@ -24,6 +24,7 @@ use mdns_sd::{ServiceDaemon, ServiceInfo};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::os::macos::raw::stat;
 use std::time::Duration;
 use std::{
     collections::HashMap,
@@ -38,9 +39,10 @@ use tokio::{
 use tower_http::cors::{Any, CorsLayer};
 //
 
-
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
+
+use crate::bonjour::{BonjourStatus, SharedBonjourContext};
 
 pub fn is_local_ip(ip: IpAddr) -> bool {
     match ip {
@@ -301,9 +303,7 @@ async fn download_file(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let range = headers
-        .get(header::RANGE)
-        .and_then(|v| v.to_str().ok());
+    let range = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
 
     if let Some(range) = range {
         let (start, end) = match parse_range_header(range, file_size) {
@@ -358,20 +358,6 @@ async fn download_file(
         )
         .body(body)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct BonjourStatus {
-    running: bool,
-    service_name: Option<String>,
-    service_type: Option<String>,
-    port: Option<u16>,
-}
-
-struct BonjourControl {
-    status: BonjourStatus,
-    daemon: Option<ServiceDaemon>,
-    reannounce_stop_tx: Option<watch::Sender<bool>>,
 }
 
 async fn run_http_server(
@@ -446,16 +432,7 @@ pub fn run() {
                 shutdown_tx: None,
                 local_only: true,
             })),
-            bonjour: Mutex::new(BonjourControl {
-                status: BonjourStatus {
-                    running: false,
-                    service_name: None,
-                    service_type: None,
-                    port: None,
-                },
-                daemon: None,
-                reannounce_stop_tx: None,
-            }),
+            bonjour: SharedBonjourContext::new(),
             shared_files,
         })
         .plugin(tauri_plugin_opener::init())
@@ -492,7 +469,7 @@ struct ServerControl {
 
 struct AppState {
     server: Arc<Mutex<ServerControl>>,
-    bonjour: Mutex<BonjourControl>,
+    bonjour: SharedBonjourContext,
     shared_files: Arc<Mutex<SharedFileControl>>,
 }
 
@@ -651,104 +628,20 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
         )
     };
 
-    let mut bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
-
-    if bonjour.status.running {
-        return Ok(bonjour.status.clone());
-    }
-
-    let service_type = "_http._tcp.local.";
-    let service_name = format!("Tetorica mDrop ({hostname})");
-
-    let daemon = ServiceDaemon::new().map_err(|e| e.to_string())?;
-
-    let mut properties = HashMap::new();
-    properties.insert("path".to_string(), "/".to_string());
-
-    let ip = local_ip().map_err(|e| e.to_string())?;
-
-    let service = ServiceInfo::new(
-        service_type,
-        &service_name,
-        &(format!("{}.", hostname)),
-        ip,
-        port,
-        properties,
-    )
-    .map_err(|e| e.to_string())?
-    .enable_addr_auto();
-
-    daemon
-        .register(service.clone())
-        .map_err(|e| e.to_string())?;
-
-    let (stop_tx, mut stop_rx) = watch::channel(false);
-
-    let daemon_for_task = daemon.clone();
-    let service_for_task = service.clone();
-
-    tokio::spawn(async move {
-        loop {
-            tokio::select! {
-                _ = tokio::time::sleep(Duration::from_secs(30)) => {
-                    match daemon_for_task.register(service_for_task.clone()) {
-                        Ok(_) => {
-                            println!("mDNS re-announce");
-                        }
-                        Err(e) => {
-                            eprintln!("mDNS re-announce error: {e}");
-                        }
-                    }
-                }
-                changed = stop_rx.changed() => {
-                    if changed.is_err() || *stop_rx.borrow() {
-                        println!("mDNS re-announce stopped");
-                        break;
-                    }
-                }
-            }
-        }
-    });
-
-    bonjour.status = BonjourStatus {
-        running: true,
-        service_name: Some(service_name.to_string()),
-        service_type: Some(service_type.to_string()),
-        port: Some(port),
-    };
-
-    bonjour.daemon = Some(daemon);
-    bonjour.reannounce_stop_tx = Some(stop_tx);
-
-    Ok(bonjour.status.clone())
+    let status = state.bonjour.start_bonjour(hostname, port)?;
+    state.bonjour.start_reannounce()?;
+    Ok(status)
 }
 
 #[tauri::command]
 async fn stop_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
     println!("> stop_bonjour");
 
-    let mut bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
-
-    if let Some(tx) = bonjour.reannounce_stop_tx.take() {
-        let _ = tx.send(true);
-    }
-
-    if let Some(daemon) = bonjour.daemon.take() {
-        let _ = daemon.shutdown();
-    }
-
-    bonjour.status = BonjourStatus {
-        running: false,
-        service_name: None,
-        service_type: None,
-        port: None,
-    };
-
-    Ok(bonjour.status.clone())
+    state.bonjour.stop_reannounce()?;
+    return state.bonjour.stop_bonjour();
 }
 
 #[tauri::command]
 async fn get_bonjour_status(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
-    let bonjour = state.bonjour.lock().map_err(|e| e.to_string())?;
-    Ok(bonjour.status.clone())
+    return state.bonjour.status();
 }
