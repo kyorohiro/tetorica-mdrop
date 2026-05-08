@@ -1,5 +1,7 @@
 mod bonjour;
+mod http_utils;
 mod hello;
+mod http;
 
 use axum::http::HeaderMap;
 use axum::http::Method;
@@ -13,29 +15,24 @@ use axum::{
 use axum::{
     extract::{Path, State as AxumState},
     http::header,
-    response::{IntoResponse, Response},
+    response::Response,
     routing::get,
     Router,
 };
 
 use if_addrs::get_if_addrs;
 use local_ip_address::local_ip;
-use mdns_sd::{ServiceDaemon, ServiceInfo};
 use serde::{Deserialize, Serialize};
+use serde_json::value::Index;
 use std::net::SocketAddr;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::os::macos::raw::stat;
-use std::time::Duration;
 use std::{
     collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 use tauri::State;
-use tokio::{
-    net::TcpListener,
-    sync::{oneshot, watch},
-};
+use tokio::{net::TcpListener, sync::oneshot};
 use tower_http::cors::{Any, CorsLayer};
 //
 
@@ -43,212 +40,16 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::bonjour::{BonjourStatus, SharedBonjourContext};
+use crate::http_utils::HttpState;
+use crate::http_utils::ServerControl;
+use crate::http_utils::ServerStatus;
+use crate::http_utils::SharedFileControl;
+use crate::http_utils::access_guard_middleware;
+use crate::http_utils::download_file;
+use crate::http_utils::is_local_ip;
+use crate::http_utils::list_ips;
 
-pub fn is_local_ip(ip: IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(v4) => is_private_or_local_v4(v4),
-        IpAddr::V6(v6) => is_private_or_local_v6(v6),
-    }
-}
 
-fn is_private_or_local_v4(ip: Ipv4Addr) -> bool {
-    ip.is_loopback() ||      // 127.0.0.0/8
-    ip.is_private() ||       // 10/8, 172.16/12, 192.168/16
-    ip.is_link_local() // 169.254.0.0/16
-}
-
-fn is_private_or_local_v6(ip: Ipv6Addr) -> bool {
-    ip.is_loopback() ||      // ::1
-    ip.is_unicast_link_local() || // fe80::/10
-    is_unique_local_v6(ip) // fc00::/7
-}
-
-fn is_unique_local_v6(ip: Ipv6Addr) -> bool {
-    (ip.segments()[0] & 0xfe00) == 0xfc00
-}
-
-async fn local_only_middleware(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    req: Request<Body>,
-    next: Next,
-) -> Result<Response, StatusCode> {
-    if !is_local_ip(addr.ip()) {
-        println!("blocked non-local access: {}", addr);
-        return Err(StatusCode::FORBIDDEN);
-    }
-
-    Ok(next.run(req).await)
-}
-
-async fn access_guard_middleware(
-    AxumState(state): AxumState<HttpState>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    req: Request<Body>,
-    next: Next,
-) -> Result<Response, StatusCode> {
-    let local_only = {
-        let server = state
-            .server
-            .lock()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        server.local_only
-    };
-
-    if local_only && !is_local_ip(addr.ip()) {
-        println!("blocked non-local access: {}", addr);
-        return Err(StatusCode::FORBIDDEN);
-    }
-
-    Ok(next.run(req).await)
-}
-
-fn parse_range_header(range: &str, size: u64) -> Result<(u64, u64), ()> {
-    if !range.starts_with("bytes=") {
-        return Err(());
-    }
-
-    let value = &range["bytes=".len()..];
-
-    // 複数 Range は今回は未対応
-    if value.contains(',') {
-        return Err(());
-    }
-
-    let Some((start_text, end_text)) = value.split_once('-') else {
-        return Err(());
-    };
-
-    if size == 0 {
-        return Err(());
-    }
-
-    if start_text.is_empty() {
-        // bytes=-500
-        let suffix_len: u64 = end_text.parse().map_err(|_| ())?;
-        if suffix_len == 0 {
-            return Err(());
-        }
-
-        let start = size.saturating_sub(suffix_len);
-        let end = size - 1;
-        return Ok((start, end));
-    }
-
-    let start: u64 = start_text.parse().map_err(|_| ())?;
-
-    if start >= size {
-        return Err(());
-    }
-
-    let end = if end_text.is_empty() {
-        size - 1
-    } else {
-        let end: u64 = end_text.parse().map_err(|_| ())?;
-        end.min(size - 1)
-    };
-
-    if end < start {
-        return Err(());
-    }
-
-    Ok((start, end))
-}
-
-fn list_ips() -> Vec<String> {
-    let mut result = Vec::new();
-
-    if let Ok(addrs) = get_if_addrs() {
-        for iface in addrs {
-            // IPv4だけに絞る
-            if let std::net::IpAddr::V4(ipv4) = iface.ip() {
-                // localhostは除外
-                if !ipv4.is_loopback() {
-                    result.push(format!("{} ({})", ipv4, iface.name));
-                }
-            }
-        }
-    }
-
-    result
-}
-
-fn content_type_from_path(path: &PathBuf) -> &'static str {
-    match path
-        .extension()
-        .and_then(|v| v.to_str())
-        .unwrap_or("")
-        .to_lowercase()
-        .as_str()
-    {
-        "html" | "htm" => "text/html; charset=utf-8",
-        "txt" => "text/plain; charset=utf-8",
-        "css" => "text/css; charset=utf-8",
-        "js" => "text/javascript; charset=utf-8",
-        "json" => "application/json; charset=utf-8",
-        "pdf" => "application/pdf",
-
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        "svg" => "image/svg+xml",
-
-        "mp3" => "audio/mpeg",
-        "wav" => "audio/wav",
-        "mp4" => "video/mp4",
-        "webm" => "video/webm",
-
-        "zip" => "application/zip",
-        "wasm" => "application/wasm",
-
-        _ => "application/octet-stream",
-    }
-}
-
-async fn index(AxumState(state): AxumState<HttpState>) -> Html<String> {
-    let items = {
-        let shared = match state.shared_files.lock() {
-            Ok(shared) => shared,
-            Err(_) => {
-                return Html("<h1>Internal Server Error</h1>".to_string());
-            }
-        };
-
-        shared
-            .files
-            .iter()
-            .map(|(id, path)| {
-                let name = path
-                    .file_name()
-                    .and_then(|v| v.to_str())
-                    .unwrap_or("download");
-
-                format!(r#"<li><a href="/download/{id}">{name}</a></li>"#)
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
-
-    let body = if items.is_empty() {
-        "<p>No shared files yet.</p>".to_string()
-    } else {
-        format!("<ul>{items}</ul>")
-    };
-
-    Html(format!(
-        r#"<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Tetorica mDrop</title>
-</head>
-<body>
-  <h1>Tetorica mDrop</h1>
-  {body}
-</body>
-</html>"#
-    ))
-}
 
 #[derive(Debug, Clone, Serialize)]
 struct SharedFileInfo {
@@ -258,107 +59,6 @@ struct SharedFileInfo {
     url: String,
 }
 
-struct SharedFileControl {
-    files: HashMap<String, PathBuf>,
-}
-
-#[derive(Clone)]
-struct HttpState {
-    shared_files: Arc<Mutex<SharedFileControl>>,
-    server: Arc<Mutex<ServerControl>>,
-}
-
-async fn download_file(
-    AxumState(state): AxumState<HttpState>,
-    Path(id): Path<String>,
-    headers: HeaderMap,
-) -> Result<Response, (StatusCode, String)> {
-    let path = {
-        let shared = state
-            .shared_files
-            .lock()
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-        shared
-            .files
-            .get(&id)
-            .cloned()
-            .ok_or((StatusCode::NOT_FOUND, "not found".to_string()))?
-    };
-
-    let metadata = tokio::fs::metadata(&path)
-        .await
-        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
-
-    let file_size = metadata.len();
-
-    let filename = path
-        .file_name()
-        .and_then(|v| v.to_str())
-        .unwrap_or("download.bin");
-
-    let content_type = content_type_from_path(&path);
-
-    let mut file = tokio::fs::File::open(&path)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    let range = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
-
-    if let Some(range) = range {
-        let (start, end) = match parse_range_header(range, file_size) {
-            Ok(v) => v,
-            Err(_) => {
-                return Response::builder()
-                    .status(StatusCode::RANGE_NOT_SATISFIABLE)
-                    .header(header::ACCEPT_RANGES, "bytes")
-                    .header(header::CONTENT_RANGE, format!("bytes */{file_size}"))
-                    .body(Body::empty())
-                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
-            }
-        };
-
-        let len = end - start + 1;
-
-        file.seek(std::io::SeekFrom::Start(start))
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-        let stream = ReaderStream::new(file.take(len));
-        let body = Body::from_stream(stream);
-
-        return Response::builder()
-            .status(StatusCode::PARTIAL_CONTENT)
-            .header(header::CONTENT_TYPE, content_type)
-            .header(header::ACCEPT_RANGES, "bytes")
-            .header(header::CONTENT_LENGTH, len.to_string())
-            .header(
-                header::CONTENT_RANGE,
-                format!("bytes {start}-{end}/{file_size}"),
-            )
-            .header(
-                header::CONTENT_DISPOSITION,
-                format!("inline; filename=\"{}\"", filename),
-            )
-            .body(body)
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
-    }
-
-    let stream = ReaderStream::new(file);
-    let body = Body::from_stream(stream);
-
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, content_type)
-        .header(header::ACCEPT_RANGES, "bytes")
-        .header(header::CONTENT_LENGTH, file_size.to_string())
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!("inline; filename=\"{}\"", filename),
-        )
-        .body(body)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
-}
 
 async fn run_http_server(
     port: u16,
@@ -372,7 +72,7 @@ async fn run_http_server(
 
     let app = Router::new()
         .route("/hello", get(hello::hello()))
-        .route("/", get(index))
+        .route("/", get(http_utils::index))
         .route("/download/{id}", get(download_file))
         .route_layer(middleware::from_fn_with_state(
             http_state.clone(),
@@ -452,20 +152,6 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-#[derive(Debug, Clone, Serialize)]
-struct ServerStatus {
-    running: bool,
-    port: Option<u16>,
-    url: Option<String>,
-    hostname: Option<String>,
-    ips: Option<Vec<String>>,
-}
-
-struct ServerControl {
-    status: ServerStatus,
-    shutdown_tx: Option<oneshot::Sender<()>>,
-    local_only: bool,
-}
 
 struct AppState {
     server: Arc<Mutex<ServerControl>>,
@@ -613,11 +299,11 @@ async fn share_file(
 }
 
 #[tauri::command]
-async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
+async fn start_bonjour(app_tauri_state: State<'_, AppState>) -> Result<BonjourStatus, String> {
     println!("> start_bonjour");
 
     let (hostname, port) = {
-        let server = state.server.lock().map_err(|e| e.to_string())?;
+        let server = app_tauri_state.server.lock().map_err(|e| e.to_string())?;
         (
             server
                 .status
@@ -628,20 +314,20 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
         )
     };
 
-    let status = state.bonjour.start(hostname, port)?;
+    let status = app_tauri_state.bonjour.start(hostname, port)?;
     //state.bonjour.start_reannounce()?;
     Ok(status)
 }
 
 #[tauri::command]
-async fn stop_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
+async fn stop_bonjour(app_tauri_state: State<'_, AppState>) -> Result<BonjourStatus, String> {
     println!("> stop_bonjour");
 
     //state.bonjour.stop_reannounce()?;
-    return state.bonjour.stop();
+    return app_tauri_state.bonjour.stop();
 }
 
 #[tauri::command]
-async fn get_bonjour_status(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
-    return state.bonjour.status();
+async fn get_bonjour_status(app_tauri_state: State<'_, AppState>) -> Result<BonjourStatus, String> {
+    return app_tauri_state.bonjour.status();
 }
