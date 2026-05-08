@@ -2,10 +2,12 @@ use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use std::collections::HashMap;
 //use std::{sync::LazyLock, time::Duration};
-//use tokio::sync::watch;
-
-use std::sync::{Mutex};
 use serde::Serialize;
+use std::sync::Mutex;
+
+//
+use std::time::Duration;
+use tokio::sync::watch;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct BonjourStatus {
@@ -20,8 +22,11 @@ pub struct BonjourContext {
     service_name: Option<String>,
     service_type: Option<String>,
     port: Option<u16>,
+    //
     daemon: Option<ServiceDaemon>,
     service: Option<ServiceInfo>,
+    //
+    reannounce_stop_tx: Option<watch::Sender<bool>>,
 }
 
 impl BonjourContext {
@@ -34,6 +39,7 @@ impl BonjourContext {
             //
             daemon: None,
             service: None,
+            reannounce_stop_tx: None,
         };
     }
 
@@ -120,7 +126,12 @@ impl BonjourContext {
             return Ok(self.status());
         }
 
-        match self.daemon.as_ref().unwrap().register(self.service.as_ref().unwrap().clone()) {
+        match self
+            .daemon
+            .as_ref()
+            .unwrap()
+            .register(self.service.as_ref().unwrap().clone())
+        {
             Ok(_) => {
                 println!("mDNS re-announce");
             }
@@ -131,10 +142,7 @@ impl BonjourContext {
 
         return Ok(self.status());
     }
-
 }
-
-
 
 pub struct SharedBonjourContext {
     inner: Mutex<BonjourContext>,
@@ -165,5 +173,56 @@ impl SharedBonjourContext {
     pub fn register_bonjour(&self) -> Result<BonjourStatus, String> {
         let mut ctx = self.inner.lock().map_err(|e| e.to_string())?;
         ctx.register_bonjour()
+    }
+
+    pub fn start_reannounce(&self) -> Result<(), String> {
+        let mut ctx = self.inner.lock().map_err(|e| e.to_string())?;
+        let (stop_tx, mut stop_rx) = watch::channel(false);
+
+        if ctx.reannounce_stop_tx.is_some() {
+            return Ok(());
+        }
+        let Some(daemon_for_task) = ctx.daemon.clone() else {
+            return Err("bonjour daemon is not running".to_string());
+        };
+
+        let Some(service_for_task) = ctx.service.clone() else {
+            return Err("bonjour service is not registered".to_string());
+        };
+
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = tokio::time::sleep(Duration::from_secs(30)) => {
+                        match daemon_for_task.register(service_for_task.clone()) {
+                            Ok(_) => {
+                                println!("mDNS re-announce");
+                            }
+                            Err(e) => {
+                                eprintln!("mDNS re-announce error: {e}");
+                            }
+                        }
+                    }
+                    changed = stop_rx.changed() => {
+                        if changed.is_err() || *stop_rx.borrow() {
+                            println!("mDNS re-announce stopped");
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        ctx.reannounce_stop_tx = Some(stop_tx);
+        Ok(())
+    }
+
+    pub fn stop_reannounce(&self) -> Result<(), String> {
+        let mut ctx = self.inner.lock().map_err(|e| e.to_string())?;
+
+        if let Some(tx) = ctx.reannounce_stop_tx.take() {
+            let _ = tx.send(true);
+        }
+        Ok(())
     }
 }
