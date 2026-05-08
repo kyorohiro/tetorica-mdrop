@@ -1,3 +1,6 @@
+mod hello;
+mod bonjour;
+
 use axum::http::Method;
 use axum::response::Html;
 use axum::{
@@ -147,10 +150,6 @@ fn parse_range_header(range: &str, size: u64) -> Result<(u64, u64), ()> {
     }
 
     Ok((start, end))
-}
-
-async fn hello() -> &'static str {
-    "hello, world"
 }
 
 fn list_ips() -> Vec<String> {
@@ -386,7 +385,7 @@ async fn run_http_server(
         .allow_headers(Any);
 
     let app = Router::new()
-        .route("/hello", get(hello))
+        .route("/hello", get(hello::hello()))
         .route("/", get(index))
         .route("/download/{id}", get(download_file))
         .route_layer(middleware::from_fn_with_state(
@@ -418,8 +417,7 @@ async fn run_http_server(
 
 #[tauri::command]
 fn greet(name: &str) -> String {
-    println!("> greet {}", name);
-    format!("Hello, {}! You've been greeted from Rust!", name)
+    return hello::greet(name);
 }
 
 #[tauri::command]
