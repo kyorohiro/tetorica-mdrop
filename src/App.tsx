@@ -73,6 +73,24 @@ function App() {
     }
   }
 
+  async function unshareFile(id: string) {
+    try {
+      setErrorMsg("");
+
+      await invoke("unshare_file", {
+        req: { id },
+      });
+
+      setSharedFiles((prev) => prev.filter((file) => file.id !== id));
+    } catch (e) {
+      console.error(e);
+      setErrorMsg(String(e));
+      dialog.showConfirmDialog({
+        title: "Error",
+        body: `${e}`,
+      });
+    }
+  }
   async function selectFiles() {
     const selected = await open({
       multiple: true,
@@ -85,6 +103,16 @@ function App() {
 
     const paths = Array.isArray(selected) ? selected : [selected];
     await sharePaths(paths);
+  }
+
+  function removeSharedFile(id: string) {
+    unshareFile(id)
+    setSharedFiles((prev) => prev.filter((file) => file.id !== id));
+  }
+
+  async function clearSharedFiles() {
+    await invoke("unshare_all_files");
+    setSharedFiles([]);
   }
 
   async function callCommand<T>(
@@ -162,7 +190,24 @@ function App() {
         }
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
-          <h2 className="text-lg font-semibold">Shared Files</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">
+              Shared Files
+              <span className="ml-2 text-sm font-normal text-slate-400">
+                {sharedFiles.length}
+              </span>
+            </h2>
+
+            {sharedFiles.length > 0 && (
+              <button
+                type="button"
+                onClick={clearSharedFiles}
+                className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+              >
+                Clear
+              </button>
+            )}
+          </div>
 
           <button
             type="button"
@@ -172,24 +217,36 @@ function App() {
             Drop files here, or click to select files
           </button>
 
-          <div className="mt-4 space-y-2">
-            {sharedFiles.map((file) => (
-              <div
-                key={file.id}
-                className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
-              >
-                <div className="font-medium text-slate-100">{file.name}</div>
-                <a
-                  className="break-all text-sky-300 underline underline-offset-4"
-                  href={file.url}
-                  target="_blank"
-                  rel="noreferrer"
+          {sharedFiles.map((file) => (
+            <div
+              key={file.id}
+              className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-slate-100">
+                    {file.name}
+                  </div>
+                  <a
+                    className="break-all text-sky-300 underline underline-offset-4"
+                    href={file.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {file.url}
+                  </a>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => removeSharedFile(file.id)}
+                  className="shrink-0 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-100"
                 >
-                  {file.url}
-                </a>
+                  Remove
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </section>
         <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <div className="mb-4 flex items-center justify-between gap-4">

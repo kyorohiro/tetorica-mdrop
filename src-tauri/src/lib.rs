@@ -59,6 +59,8 @@ pub fn run() {
             stop_bonjour,
             get_bonjour_status,
             share_file,
+            unshare_file,
+            unshare_all_files,
             set_local_only,
         ])
         .run(tauri::generate_context!())
@@ -113,6 +115,39 @@ async fn get_server_status(state: State<'_, AppState>) -> Result<ServerStatus, S
 #[derive(Debug, Deserialize)]
 struct ShareFileRequest {
     path: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct UnshareFileRequest {
+    id: String,
+}
+
+#[tauri::command]
+async fn unshare_file(
+    state: State<'_, AppState>,
+    req: UnshareFileRequest,
+) -> Result<(), String> {
+    println!("> unshare_file {}", req.id);
+
+    let mut server = state.server2.inner.lock().map_err(|e| e.to_string())?;
+
+    if server.files.remove(&req.id).is_none() {
+        return Err("shared file not found".to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn unshare_all_files(
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    println!("> unshare_all_files");
+
+    let mut server = state.server2.inner.lock().map_err(|e| e.to_string())?;
+    server.files.clear();
+
+    Ok(())
 }
 
 #[tauri::command]
