@@ -155,6 +155,21 @@ impl SharedBonjourContext {
         }
     }
 
+    pub fn start(&self, hostname: String, port: u16) -> Result<BonjourStatus, String> {
+        let status = self.start_bonjour(hostname, port)?;
+
+        if let Err(e) = self.start_reannounce() {
+            let _ = self.stop_bonjour();
+            return Err(e);
+        }
+
+        Ok(status)
+    }
+
+    pub fn stop(&self) -> Result<BonjourStatus, String> {
+        let _ = self.stop_reannounce();
+        self.stop_bonjour()
+    }
     pub fn start_bonjour(&self, hostname: String, port: u16) -> Result<BonjourStatus, String> {
         let mut ctx = self.inner.lock().map_err(|e| e.to_string())?;
         ctx.start_bonjour(hostname, port)

@@ -628,8 +628,8 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
         )
     };
 
-    let status = state.bonjour.start_bonjour(hostname, port)?;
-    state.bonjour.start_reannounce()?;
+    let status = state.bonjour.start(hostname, port)?;
+    //state.bonjour.start_reannounce()?;
     Ok(status)
 }
 
@@ -637,8 +637,8 @@ async fn start_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, Stri
 async fn stop_bonjour(state: State<'_, AppState>) -> Result<BonjourStatus, String> {
     println!("> stop_bonjour");
 
-    state.bonjour.stop_reannounce()?;
-    return state.bonjour.stop_bonjour();
+    //state.bonjour.stop_reannounce()?;
+    return state.bonjour.stop();
 }
 
 #[tauri::command]
