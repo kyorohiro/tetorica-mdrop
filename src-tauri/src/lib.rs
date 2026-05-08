@@ -46,8 +46,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             server2: SharedHttpServerContext::new(),
-            bonjour: SharedBonjourContext::new(),
-            shared_files,
+            bonjour: SharedBonjourContext::new()
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -70,7 +69,6 @@ struct AppState {
     //server: Arc<Mutex<ServerControl>>,
     server2: SharedHttpServerContext,
     bonjour: SharedBonjourContext,
-    shared_files: Arc<Mutex<SharedFileControl>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -149,11 +147,6 @@ async fn share_file(
             server.status.port.ok_or("server not running")?,
         )
     };
-
-    {
-        let mut shared = state.shared_files.lock().map_err(|e| e.to_string())?;
-        shared.files.insert(id.clone(), path.clone());
-    }
 
     {
         state.server2.inner.lock().unwrap().files.insert(id.clone(), path.clone());
