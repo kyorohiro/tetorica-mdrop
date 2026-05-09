@@ -47,6 +47,7 @@ function App() {
   const [serverStatus, setServerStatus] =
     useState<ServerStatus>(initialServerStatus);
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [bonjourStatus, setBonjourStatus] =
     useState<BonjourStatus>(initialBonjourStatus);
   const [errorMsg, setErrorMsg] = useState("");
@@ -281,8 +282,28 @@ function App() {
                 (serverStatus.ips ?? []).join(",")
               }
             />
-             <StatusRow label="ID" value={"mdrop"} />
-             <StatusRow label="Password" value={<input type="password" readOnly={serverStatus.running} value={password || ""} onChange={(e) => setPassword(e.target.value)} />} />
+            <StatusRow label="ID" value={"mdrop"} />
+            <StatusRow
+              label="Password"
+              value={
+                <div className="flex gap-2">
+                  <input
+                    className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 read-only:opacity-50"
+                    type={passwordVisible ? "text" : "password"}
+                    readOnly={serverStatus.running}
+                    value={password || ""}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800"
+                    onClick={() => setPasswordVisible((v) => !v)}
+                  >
+                    {passwordVisible ? "Hide" : "Preview"}
+                  </button>
+                </div>
+              }
+            />
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
