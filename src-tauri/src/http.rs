@@ -18,8 +18,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::hello;
 use crate::http_file;
-use crate::http_file::access_guard_middleware;
-use crate::http_utils::list_ips;
+use crate::http_utils::{access_guard_middleware, list_ips};
 
 ///
 use rcgen::generate_simple_self_signed;

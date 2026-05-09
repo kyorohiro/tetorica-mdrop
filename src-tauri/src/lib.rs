@@ -157,9 +157,9 @@ async fn share_file(
 
     let path = PathBuf::from(&req.path);
 
-    if !path.is_file() {
-        return Err("not a file".to_string());
-    }
+    //if !path.is_file() {
+    //    return Err("not a file".to_string());
+    //}
 
     let name = path
         .file_name()
