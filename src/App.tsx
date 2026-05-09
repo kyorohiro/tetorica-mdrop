@@ -61,6 +61,14 @@ function App() {
 
   async function sharePaths(paths: string[]) {
     try {
+              console.log(serverStatus);
+      if (!serverStatus.running) {
+        await dialog.showConfirmDialog({
+          title: `Server Not Running! ${serverStatus.running}`,
+          body: "Please start the server before dropping files or folders."
+        })
+        return;
+      }
       setErrorMsg("");
 
       for (const path of paths) {
@@ -108,6 +116,19 @@ function App() {
     await sharePaths(paths);
   }
 
+    async function selectFolders() {
+    const selected = await open({
+      multiple: true,
+      directory: true,
+    });
+
+    if (!selected) {
+      return;
+    }
+
+    const paths = Array.isArray(selected) ? selected : [selected];
+    await sharePaths(paths);
+  }
   function removeSharedFile(id: string) {
     unshareFile(id)
     setSharedFiles((prev) => prev.filter((file) => file.id !== id));
@@ -164,7 +185,7 @@ function App() {
     return () => {
       unlistenPromise.then((unlisten) => unlisten());
     };
-  }, []);
+  }, [, serverStatus]);
 
   return (
     <main className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
@@ -212,13 +233,23 @@ function App() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={selectFiles}
-            className="mt-4 w-full rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
-          >
-            Drop files here, or click to select files
-          </button>
+<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+  <button
+    type="button"
+    onClick={selectFiles}
+    className="rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
+  >
+    Drop files here, or click to add files
+  </button>
+
+  <button
+    type="button"
+    onClick={selectFolders}
+    className="rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
+  >
+    Drop folders here, or click to add folders
+  </button>
+</div>
 
           {sharedFiles.map((file) => (
             <div
@@ -502,7 +533,7 @@ function App() {
                   className="h-4 w-4 rounded border-slate-700 bg-slate-950"
                   checked={localOnly}
                   onChange={async (e) => {
-                    if(serverStatus.running) {
+                    if (serverStatus.running) {
                       return;
                     }
                     const enabled = e.target.checked;
@@ -525,7 +556,7 @@ function App() {
                   className="h-4 w-4 rounded border-slate-700 bg-slate-950"
                   checked={isHttps}
                   onChange={async (e) => {
-                    if(serverStatus.running) {
+                    if (serverStatus.running) {
                       return;
                     }
                     const enabled = e.target.checked;

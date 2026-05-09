@@ -261,3 +261,59 @@ pub async fn access_guard_middleware(
 
     Ok(next.run(req).await)
 }
+
+pub fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+pub fn escape_header_value(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+pub fn url_encode_path_segment(s: &str) -> String {
+    let mut result = String::new();
+
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b'0'..=b'9'
+            | b'-'
+            | b'_'
+            | b'.'
+            | b'~' => result.push(b as char),
+            _ => result.push_str(&format!("%{:02X}", b)),
+        }
+    }
+
+    result
+}
+
+
+pub fn natural_sort_key(s: &str) -> String {
+    let mut result = String::new();
+    let mut number = String::new();
+
+    for ch in s.chars() {
+        if ch.is_ascii_digit() {
+            number.push(ch);
+        } else {
+            if !number.is_empty() {
+                result.push_str(&format!("{:08}", number.parse::<u64>().unwrap_or(0)));
+                number.clear();
+            }
+
+            result.push(ch.to_ascii_lowercase());
+        }
+    }
+
+    if !number.is_empty() {
+        result.push_str(&format!("{:08}", number.parse::<u64>().unwrap_or(0)));
+    }
+
+    result
+}

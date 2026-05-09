@@ -144,7 +144,8 @@ impl SharedHttpServerContext {
         Router::new()
             .route("/hello", get(hello::hello()))
             .route("/", get(http_file::index_get))
-            .route("/download/{id}", get(http_file::download_file))
+            .route("/download/{id}", get(http_file::download_root_file))
+            .route("/download/{id}/{*sub_path}", get(http_file::download_file))
             .route_layer(middleware::from_fn_with_state(
                 self.clone(),
                 access_guard_middleware,
