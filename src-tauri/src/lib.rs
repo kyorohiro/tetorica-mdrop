@@ -30,12 +30,6 @@ fn greet(name: &str) -> String {
     return hello::greet(name);
 }
 
-#[tauri::command]
-async fn set_local_only(state: State<'_, AppState>, enabled: bool) -> Result<ServerStatus, String> {
-    let mut server = state.server2.inner.lock().map_err(|e| e.to_string())?;
-    server.local_only = enabled;
-    return Ok(server.status.clone());
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -61,7 +55,6 @@ pub fn run() {
             share_file,
             unshare_file,
             unshare_all_files,
-            set_local_only,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -80,6 +73,8 @@ struct StartServerRequest {
     port: String,
     id: Option<String>,
     password: Option<String>,
+    is_https: Option<bool>,
+    local_only: Option<bool>,
 }
 
 #[tauri::command]
@@ -87,13 +82,14 @@ async fn start_server(
     state: State<'_, AppState>,
     req: StartServerRequest,
 ) -> Result<ServerStatus, String> {
-    println!("> start_server!");
+    println!("> start_server! {:?}", req);
 
     let port: u16 = req.port.parse().map_err(|_| "invalid port".to_string())?;
 
     let hostname = req.hostname.trim().trim_end_matches('/').to_string();
-
-    let status = state.server2.start_server(hostname, port, req.id, req.password)?;
+    let is_https: bool = req.is_https.unwrap_or(false);
+    let local_only: bool = req.local_only.unwrap_or(true);
+    let status = state.server2.start_server(hostname, port, req.id, req.password, Some(is_https), Some(local_only))?;
     //
     //
     Ok(status)

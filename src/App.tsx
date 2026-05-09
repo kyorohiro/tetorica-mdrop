@@ -57,6 +57,7 @@ function App() {
   const [port, setPort] = useState("7878");
   const dialog = useDialog();
   const [localOnly, setLocalOnly] = useState(true);
+  const [isHttps, setIsHttps] = useState(false);
 
   async function sharePaths(paths: string[]) {
     try {
@@ -322,7 +323,9 @@ function App() {
                       hostname,
                       port,
                       id: "mdrop",
-                      password: password
+                      password: password,
+                      isHttps: isHttps,
+                      localOnly: localOnly,
                     },
                   })
                 } catch (e) {
@@ -448,7 +451,7 @@ function App() {
           <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm">
             <div className="mb-1 text-slate-400">Bonjour URL</div>
             <code className="break-all text-sky-300">
-              http://{hostname}:{port}/
+              {isHttps ? "https" : "http"}://{hostname}:{port}/
             </code>
             {
               //<code className="break-all text-sky-300">
@@ -499,20 +502,40 @@ function App() {
                   className="h-4 w-4 rounded border-slate-700 bg-slate-950"
                   checked={localOnly}
                   onChange={async (e) => {
+                    if(serverStatus.running) {
+                      return;
+                    }
                     const enabled = e.target.checked;
                     setLocalOnly(enabled);
-                    await invoke("set_local_only", { enabled });
+                    //await invoke("set_local_only", { enabled });
                   }}
+                  readOnly={serverStatus.running}
                 />
                 <span className="text-slate-300">Local only</span>
               </label>
-
               <p className="text-xs text-slate-500">
                 Allow access only from local/private network addresses.
               </p>
               <p className="text-xs text-slate-500">
                 Default: tetorica-mdrop.local:7878
               </p>
+              <label className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-700 bg-slate-950"
+                  checked={isHttps}
+                  onChange={async (e) => {
+                    if(serverStatus.running) {
+                      return;
+                    }
+                    const enabled = e.target.checked;
+                    setIsHttps(enabled);
+                  }}
+                  readOnly={serverStatus.running}
+                />
+                <span className="text-slate-300">Use Https</span>
+              </label>
+
             </div>
             {
 
