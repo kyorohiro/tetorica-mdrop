@@ -78,6 +78,8 @@ struct AppState {
 struct StartServerRequest {
     hostname: String,
     port: String,
+    id: Option<String>,
+    password: Option<String>,
 }
 
 #[tauri::command]
@@ -91,7 +93,7 @@ async fn start_server(
 
     let hostname = req.hostname.trim().trim_end_matches('/').to_string();
 
-    let status = state.server2.start_server(hostname, port)?;
+    let status = state.server2.start_server(hostname, port, req.id, req.password)?;
     //
     //
     Ok(status)

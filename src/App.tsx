@@ -46,6 +46,7 @@ function App() {
   //  const [greetMsg, setGreetMsg] = useState("");
   const [serverStatus, setServerStatus] =
     useState<ServerStatus>(initialServerStatus);
+  const [password, setPassword] = useState("");
   const [bonjourStatus, setBonjourStatus] =
     useState<BonjourStatus>(initialBonjourStatus);
   const [errorMsg, setErrorMsg] = useState("");
@@ -280,6 +281,8 @@ function App() {
                 (serverStatus.ips ?? []).join(",")
               }
             />
+             <StatusRow label="ID" value={"mdrop"} />
+             <StatusRow label="Password" value={<input type="password" readOnly={serverStatus.running} value={password || ""} onChange={(e) => setPassword(e.target.value)} />} />
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
@@ -297,6 +300,8 @@ function App() {
                     req: {
                       hostname,
                       port,
+                      id: "mdrop",
+                      password: password
                     },
                   })
                 } catch (e) {

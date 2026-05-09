@@ -32,6 +32,8 @@ pub struct ServerStatus {
     pub url: Option<String>,
     pub hostname: Option<String>,
     pub ips: Option<Vec<String>>,
+    pub id: Option<String>,
+    pub password: Option<String>,
 }
 
 impl ServerStatus {
@@ -42,6 +44,8 @@ impl ServerStatus {
             url: None,
             hostname: None,
             ips: None,
+            id: None,
+            password: None,
         }
     }
 }
@@ -82,6 +86,8 @@ impl HttpServerContext {
                 url: None,
                 hostname: None,
                 ips: None,
+                id: None,
+                password: None,
             };
 
             self.shutdown_tx.take()
@@ -153,6 +159,8 @@ impl SharedHttpServerContext {
         &self,
         hostname: String,
         port: u16,
+        id: Option<String>,
+        password: Option<String>,
         //state: Arc<Mutex<HttpServerContext>>,
     ) -> Result<ServerStatus, String> {
         println!(">>> start_server");
@@ -172,12 +180,16 @@ impl SharedHttpServerContext {
         let ip = local_ip().map_err(|e| e.to_string())?;
         ctx.shutdown_tx = Some(tx);
 
+        let id = id.unwrap_or_else(|| "mdrop".to_string());
+        let password = password.unwrap_or_else(|| "".to_string());
         ctx.status = ServerStatus {
             running: true,
             port: Some(port),
             url: Some(format!("http://{}:{port}/", ip)),
             hostname: Some(hostname),
             ips: Some(list_ips()),
+            id: Some(format!("{id}")),
+            password: Some(format!("{password}"))
         };
         Ok(ctx.status.clone())
     }
