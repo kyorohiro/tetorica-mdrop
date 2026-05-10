@@ -37,7 +37,7 @@ Launch the app and click:
 
 On any device connected to the same Wi-Fi:
 
-[http://tetorica-mdrop.local:7878/](http://tetorica-mdrop.local:7878/)
+[http://mdrop.local:7878/](http://mdrop.local:7878/)
 
 or
 
@@ -185,11 +185,11 @@ Using the IP address (e.g. http://192.168.x.x:7878/) is more reliable than .loca
 ```
 % sh deploy_mac.sh
 % ~/bin/butler login
-% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.3.3_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.3.3
+% ~/bin/butler push src-tauri/target/release/bundle/dmg/tetorica-mdrop_0.3.4_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.3.4
 
-% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.3.3_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.3.3
+% ~/bin/butler push src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.3.4_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.3.4
 
-% ~/bin/butler push "tetorica-mdrop_0.3.3_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.3.3
+% ~/bin/butler push "tetorica-mdrop_0.3.4_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.3.4
 ```
 
 # Memo

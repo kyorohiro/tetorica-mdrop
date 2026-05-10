@@ -54,7 +54,7 @@ function App() {
   const [errorMsg, setErrorMsg] = useState("");
   const [sharedFiles, setSharedFiles] = useState<SharedFileInfo[]>([]);
   //
-  const [hostname, setHostname] = useState("tetorica-mdrop.local");
+  const [hostname, setHostname] = useState("mdrop.local");
   const [port, setPort] = useState("7878");
   const dialog = useDialog();
   const [localOnly, setLocalOnly] = useState(true);
@@ -519,7 +519,7 @@ function App() {
             </code>
             {
               //<code className="break-all text-sky-300">
-              //  http://tetorica-mdrop.local:7878/
+              //  http://mdrop.local:7878/
               //</code>
             }
           </div>
@@ -542,7 +542,7 @@ function App() {
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 read-only:opacity-50"
                   value={hostname}
                   onChange={(e) => setHostname(e.target.value)}
-                  placeholder="tetorica-mdrop.local"
+                  placeholder="mdrop.local"
                   readOnly={serverStatus.running}
                 />
               </label>
