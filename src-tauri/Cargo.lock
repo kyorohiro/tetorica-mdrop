@@ -4568,7 +4568,7 @@ dependencies = [
 
 [[package]]
 name = "tetorica-mdrop"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "axum",
  "axum-server",
@@ -4577,6 +4577,7 @@ dependencies = [
  "if-addrs",
  "local-ip-address",
  "mdns-sd",
+ "percent-encoding",
  "rcgen",
  "serde",
  "serde_json",

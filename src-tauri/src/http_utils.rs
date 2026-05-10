@@ -317,3 +317,14 @@ pub fn natural_sort_key(s: &str) -> String {
 
     result
 }
+
+
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+pub fn content_disposition_inline(filename: &str) -> String {
+    let encoded = utf8_percent_encode(filename, NON_ALPHANUMERIC).to_string();
+
+    format!(
+        "inline; filename=\"download.bin\"; filename*=UTF-8''{}",
+        encoded
+    )
+}

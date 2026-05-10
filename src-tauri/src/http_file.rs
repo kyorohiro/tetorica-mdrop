@@ -14,7 +14,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::http::SharedHttpServerContext;
-use crate::http_utils::{natural_sort_key, parse_range_header};
+use crate::http_utils::{content_disposition_inline, natural_sort_key, parse_range_header};
 use crate::http_utils::{
     content_type_from_path, escape_header_value, escape_html, url_encode_path_segment,
 };
@@ -88,6 +88,7 @@ async fn download_file_inner(
     sub_path: Option<String>,
     headers: HeaderMap,
 ) -> Result<Response<Body>, (StatusCode, String)> {
+    println!("> download_file_inner {id} {:?}", sub_path);
     let base_path = {
         let shared = state
             .inner
@@ -111,14 +112,17 @@ async fn download_file_inner(
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
     if metadata.is_dir() {
+        println!(">> file dir {:?}", path.as_path().to_str());
         return directory_response(&id, sub_path.as_deref(), &path).await;
         //return directory_response(&id, &path).await;
     }
 
     if metadata.is_file() {
+        println!(">> file {:?}", path.as_path().to_str());
         return file_response(&path, metadata.len(), headers).await;
     }
 
+    println!(">> ERROR");
     Err((StatusCode::NOT_FOUND, "not found".to_string()))
 }
 
@@ -286,7 +290,7 @@ async fn file_response(
             )
             .header(
                 header::CONTENT_DISPOSITION,
-                format!("inline; filename=\"{}\"", escape_header_value(filename)),
+                 content_disposition_inline(filename),
             )
             .body(body)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
@@ -302,7 +306,7 @@ async fn file_response(
         .header(header::CONTENT_LENGTH, file_size.to_string())
         .header(
             header::CONTENT_DISPOSITION,
-            format!("inline; filename=\"{}\"", escape_header_value(filename)),
+            content_disposition_inline(filename),
         )
         .body(body)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
