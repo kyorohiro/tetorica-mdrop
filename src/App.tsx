@@ -6,6 +6,7 @@ import "./App.css";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useDialog } from "./useDialog";
+import { QRCodeSVG } from 'qrcode.react';
 
 type ServerStatus = {
   running: boolean;
@@ -59,9 +60,20 @@ function App() {
   const [localOnly, setLocalOnly] = useState(true);
   const [isHttps, setIsHttps] = useState(false);
 
+  const bonjureRootUrl = () => { 
+    return (isHttps ? "https" : "http") + `://${hostname}:${port}/`;
+  }
+  const ipRootUrl = () => { 
+    return serverStatus.url ?? "";
+  }
+
+  const rootUrl = () => {
+    return bonjourStatus.running ? bonjureRootUrl() : ipRootUrl();
+  }
+
   async function sharePaths(paths: string[]) {
     try {
-              console.log(serverStatus);
+      console.log(serverStatus);
       if (!serverStatus.running) {
         await dialog.showConfirmDialog({
           title: `Server Not Running! ${serverStatus.running}`,
@@ -116,7 +128,7 @@ function App() {
     await sharePaths(paths);
   }
 
-    async function selectFolders() {
+  async function selectFolders() {
     const selected = await open({
       multiple: true,
       directory: true,
@@ -233,25 +245,27 @@ function App() {
             )}
           </div>
 
-<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-  <button
-    type="button"
-    onClick={selectFiles}
-    className="rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
-  >
-    Drop files here, or click to add files
-  </button>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={selectFiles}
+              className="rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
+            >
+              Drop files here, or click to add files
+            </button>
 
-  <button
-    type="button"
-    onClick={selectFolders}
-    className="rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
-  >
-    Drop folders here, or click to add folders
-  </button>
-</div>
+            <button
+              type="button"
+              onClick={selectFolders}
+              className="rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
+            >
+              Drop folders here, or click to add folders
+            </button>
+          </div>
 
-          {sharedFiles.map((file) => (
+          {sharedFiles.map((file) => {
+            let urlPath = (new URL(file.url)).pathname;
+            return(
             <div
               key={file.id}
               className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
@@ -263,11 +277,11 @@ function App() {
                   </div>
                   <a
                     className="break-all text-sky-300 underline underline-offset-4"
-                    href={file.url}
+                    href={rootUrl().replace(RegExp("\\/$"), "") + "/" + urlPath.replace(RegExp("^\\/"), "")}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {file.url}
+                    {rootUrl().replace(RegExp("\\/$"), "") + "/" + urlPath.replace(RegExp("^\\/"), "")}
                   </a>
                 </div>
 
@@ -280,7 +294,7 @@ function App() {
                 </button>
               </div>
             </div>
-          ))}
+          )})}
         </section>
         <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <div className="mb-4 flex items-center justify-between gap-4">
@@ -302,6 +316,11 @@ function App() {
                     rel="noreferrer"
                   >
                     {serverStatus.url}
+                    <QRCodeSVG
+                      value={serverStatus.url}
+                      size={180}
+                      level="M"
+                    />
                   </a>
                 ) : (
                   "-"
@@ -482,7 +501,21 @@ function App() {
           <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm">
             <div className="mb-1 text-slate-400">Bonjour URL</div>
             <code className="break-all text-sky-300">
-              {isHttps ? "https" : "http"}://{hostname}:{port}/
+
+              <a
+                className="text-sky-300 underline underline-offset-4 hover:text-sky-200"
+                href={(isHttps ? "https" : "http") + `://${hostname}:${port}/`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <QRCodeSVG
+                  value={(isHttps ? "https" : "http") + `://${hostname}:${port}/`}
+                  size={180}
+                  level="M"
+                />
+                {isHttps ? "https" : "http"}://{hostname}:{port}/
+              </a>
+
             </code>
             {
               //<code className="break-all text-sky-300">
