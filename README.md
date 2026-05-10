@@ -8,6 +8,7 @@ Just drag and drop files, and any device on the same Wi-Fi can download them thr
 
 ![](./src-tauri/icons/Square310x310Logo.png)
 
+https://kyorohiro.github.io/tetorica-mdrop/
 
 ```
 ---
