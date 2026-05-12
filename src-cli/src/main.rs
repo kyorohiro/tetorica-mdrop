@@ -49,7 +49,15 @@ async fn main() -> Result<(), String> {
 
     println!("mDrop sharing:");
     println!("  {}", cli.path.display());
-    println!("  http://{}:{}/download/{}", hostname.clone(), cli.port, id);
+    
+    let ip_info = status
+    .ips
+    .as_ref()
+    .map(|ips| ips.join(","))
+    .unwrap_or_default();
+
+    println!("  ip_info: {}", ip_info);
+    println!("  http://{}:{}/", hostname.clone(), cli.port);
     println!("Press Ctrl+C to stop.");
 
     tokio::signal::ctrl_c()

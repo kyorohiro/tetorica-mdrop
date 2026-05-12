@@ -179,7 +179,7 @@ impl SharedHttpServerContext {
             });
         }
 
-        println!("Server started on https://0.0.0.0:{port}");
+        println!("Server started on https://0.0.0.0:{port}/");
 
         axum_server::bind_rustls(addr, config)
             .handle(handle)
@@ -202,7 +202,7 @@ impl SharedHttpServerContext {
             .await
             .map_err(|e| e.to_string())?;
 
-        println!("Server started on http://0.0.0.0:{port}");
+        println!("Server started on http://0.0.0.0:{port}/");
 
         axum::serve(
             listener,
