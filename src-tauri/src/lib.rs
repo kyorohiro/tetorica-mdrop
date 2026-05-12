@@ -1,8 +1,7 @@
-mod bonjour;
-mod hello;
-mod http;
-mod http_utils;
-mod http_file;
+use tetorica_mdrop_core::bonjour::{BonjourStatus, SharedBonjourContext};
+use tetorica_mdrop_core::http::{ServerStatus, SharedHttpServerContext};
+use tetorica_mdrop_core::http_utils::SharedFileControl;
+use tetorica_mdrop_core::hello;
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -11,11 +10,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tauri::State;
-//
-
-use crate::bonjour::{BonjourStatus, SharedBonjourContext};
-use crate::http::{ServerStatus, SharedHttpServerContext};
-use crate::http_utils::SharedFileControl;
 
 #[derive(Debug, Clone, Serialize)]
 struct SharedFileInfo {
