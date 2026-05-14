@@ -5,7 +5,7 @@ import "./App.css";
 //import { listen } from "@tauri-apps/api/event";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { message, open } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useDialog } from "./useDialog";
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -67,7 +67,7 @@ function App() {
   const [localOnly, setLocalOnly] = useState(true);
   const [isHttps, setIsHttps] = useState(false);
 
-  const [receivedMessages, setReceivedMessages] = useState<ReceivedMessage[]>([]);
+  const [_, setReceivedMessages] = useState<ReceivedMessage[]>([]);
 
   const bonjureRootUrl = () => { 
     return (isHttps ? "https" : "http") + `://${hostname}:${port}/`;
