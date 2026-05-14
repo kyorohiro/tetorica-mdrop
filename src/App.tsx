@@ -3,10 +3,17 @@ import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 //import { listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { open } from "@tauri-apps/plugin-dialog";
+import { message, open } from "@tauri-apps/plugin-dialog";
 import { useDialog } from "./useDialog";
 import { QRCodeSVG } from 'qrcode.react';
+
+type ReceivedMessage = {
+  from: string;
+  method: string;
+  text: string;
+};
 
 type ServerStatus = {
   running: boolean;
@@ -59,6 +66,8 @@ function App() {
   const dialog = useDialog();
   const [localOnly, setLocalOnly] = useState(true);
   const [isHttps, setIsHttps] = useState(false);
+
+  const [receivedMessages, setReceivedMessages] = useState<ReceivedMessage[]>([]);
 
   const bonjureRootUrl = () => { 
     return (isHttps ? "https" : "http") + `://${hostname}:${port}/`;
@@ -199,6 +208,20 @@ function App() {
     };
   }, [, serverStatus]);
 
+  //
+  useEffect(() => {
+    const unlistenPromise = listen<ReceivedMessage>("message-received", (event) => {
+      setReceivedMessages((prev) => [event.payload, ...prev].slice(0, 100));
+      dialog.showConfirmDialog({
+        title: "Received Message", 
+        body: `${event.payload.text} \r\n from ${event.payload.from} (${event.payload.method})`
+      })
+    });
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
   return (
     <main className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-3xl px-6 py-8">
@@ -224,7 +247,48 @@ function App() {
           //  <Button onClick={greet}>Greet</Button>
           //</section>
         }
+        {
+          /*
+<section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
+  <div className="mb-4 flex items-center justify-between gap-4">
+    <h2 className="text-lg font-semibold">
+      Received Messages
+      <span className="ml-2 text-sm font-normal text-slate-400">
+        {receivedMessages.length}
+      </span>
+    </h2>
 
+    {receivedMessages.length > 0 && (
+      <button
+        type="button"
+        onClick={() => setReceivedMessages([])}
+        className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+      >
+        Clear
+      </button>
+    )}
+  </div>
+
+  {receivedMessages.length === 0 ? (
+    <p className="text-sm text-slate-400">No messages yet.</p>
+  ) : (
+    <div className="space-y-3">
+      {receivedMessages.map((msg, index) => (
+        <div
+          key={index}
+          className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
+        >
+          <div className="mb-1 text-xs text-slate-500">
+            {msg.method} from {msg.from}
+          </div>
+          <div className="break-all text-slate-100">{msg.text}</div>
+        </div>
+      ))}
+    </div>
+  )}
+</section>
+*/
+}
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">

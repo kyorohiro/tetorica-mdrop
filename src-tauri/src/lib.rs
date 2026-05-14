@@ -1,7 +1,7 @@
 use tetorica_mdrop_core::bonjour::{BonjourStatus, SharedBonjourContext};
+use tetorica_mdrop_core::hello;
 use tetorica_mdrop_core::http::{ServerStatus, SharedHttpServerContext};
 use tetorica_mdrop_core::http_utils::SharedFileControl;
-use tetorica_mdrop_core::hello;
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -24,17 +24,34 @@ fn greet(name: &str) -> String {
     return hello::greet(name);
 }
 
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let server2 = SharedHttpServerContext::new();
+    let bonjour = SharedBonjourContext::new();
     let shared_files = Arc::new(Mutex::new(SharedFileControl {
         files: HashMap::new(),
     }));
 
     tauri::Builder::default()
         .manage(AppState {
-            server2: SharedHttpServerContext::new(),
-            bonjour: SharedBonjourContext::new()
+            server2: server2.clone(),
+            bonjour,
+        })
+        .setup(move |app| {
+            use tauri::Emitter;
+
+            println!("setup message callback");
+
+            let app_handle = app.handle().clone();
+
+            server2.set_message_callback(move |msg| {
+                println!("callback received: {:?}", msg);
+
+                let ret = app_handle.emit("message-received", msg);
+                println!("emit result: {:?}", ret);
+            });
+
+            Ok(())
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -83,7 +100,14 @@ async fn start_server(
     let hostname = req.hostname.trim().trim_end_matches('/').to_string();
     let is_https: bool = req.is_https.unwrap_or(false);
     let local_only: bool = req.local_only.unwrap_or(true);
-    let status = state.server2.start_server(hostname, port, req.id, req.password, Some(is_https), Some(local_only))?;
+    let status = state.server2.start_server(
+        hostname,
+        port,
+        req.id,
+        req.password,
+        Some(is_https),
+        Some(local_only),
+    )?;
     //
     //
     Ok(status)
@@ -94,7 +118,7 @@ async fn stop_server(state: State<'_, AppState>) -> Result<ServerStatus, String>
     println!("> stop_server");
 
     let state = state.server2.stop_server();
- 
+
     return state;
 }
 
@@ -115,10 +139,7 @@ struct UnshareFileRequest {
 }
 
 #[tauri::command]
-async fn unshare_file(
-    state: State<'_, AppState>,
-    req: UnshareFileRequest,
-) -> Result<(), String> {
+async fn unshare_file(state: State<'_, AppState>, req: UnshareFileRequest) -> Result<(), String> {
     println!("> unshare_file {}", req.id);
 
     let mut server = state.server2.inner.lock().map_err(|e| e.to_string())?;
@@ -131,9 +152,7 @@ async fn unshare_file(
 }
 
 #[tauri::command]
-async fn unshare_all_files(
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+async fn unshare_all_files(state: State<'_, AppState>) -> Result<(), String> {
     println!("> unshare_all_files");
 
     let mut server = state.server2.inner.lock().map_err(|e| e.to_string())?;
@@ -176,7 +195,13 @@ async fn share_file(
     };
 
     {
-        state.server2.inner.lock().unwrap().files.insert(id.clone(), path.clone());
+        state
+            .server2
+            .inner
+            .lock()
+            .unwrap()
+            .files
+            .insert(id.clone(), path.clone());
     }
     Ok(SharedFileInfo {
         id: id.clone(),
@@ -191,7 +216,11 @@ async fn start_bonjour(app_tauri_state: State<'_, AppState>) -> Result<BonjourSt
     println!("> start_bonjour");
 
     let (hostname, port) = {
-        let server = app_tauri_state.server2.inner.lock().map_err(|e| e.to_string())?;
+        let server = app_tauri_state
+            .server2
+            .inner
+            .lock()
+            .map_err(|e| e.to_string())?;
         (
             server
                 .status
