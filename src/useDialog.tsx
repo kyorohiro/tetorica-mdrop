@@ -428,6 +428,10 @@ type ShowDialogHelpers<T> = {
 };
 
 
+const createDialogId = () => {
+  return `dialog-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 // eslint-disable-next-line react-refresh/only-export-components
 export function useDialog() {
     const { push, pop } = useDialogCore();
@@ -445,7 +449,7 @@ export function useDialog() {
             render: (helpers: ShowDialogHelpers<T>) => ReactNode
         ): Promise<T | null> => {
             return new Promise<T | null>((outerResolve) => {
-                const id = crypto.randomUUID();
+                const id = createDialogId();
 
                 const resolve = (value: T | null) => {
                     outerResolve(value);

@@ -18,7 +18,10 @@ type TargetFile = {
 const getMeta = async (): Promise<{ apiServer: string }> => {
     const metaResp = await fetch("./meta.json");
     if (!metaResp.ok) {
-        throw "";
+        const url = new URL(window.location.href);
+        return {
+            apiServer: url.origin,
+        }
     }
     const data = await metaResp.text();
     //console.log(data);

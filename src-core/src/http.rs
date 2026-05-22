@@ -143,6 +143,7 @@ pub struct HttpServerContext {
     pub local_only: bool,
     pub files: HashMap<String, PathBuf>,
     pub message_callback: Option<MessageCallback>,
+    pub web_dist_dir: Option<PathBuf>,
 }
 
 impl HttpServerContext {
@@ -153,6 +154,7 @@ impl HttpServerContext {
             local_only: true,
             files: HashMap::new(),
             message_callback: None,
+            web_dist_dir: None,
         }
     }
 
@@ -178,9 +180,11 @@ pub struct SharedHttpServerContext {
     pub inner: Arc<Mutex<HttpServerContext>>,
 }
 
+async fn web_index(AxumState(state): AxumState<SharedHttpServerContext>) -> Html<String> {
+    let path = state.web_dist_dir().join("web.html");
 
-async fn web_index() -> Html<String> {
-    let html = fs::read_to_string("../dist/web.html").expect("failed to read ../dist/web.html");
+    let html =
+        fs::read_to_string(&path).unwrap_or_else(|e| format!("failed to read {:?}: {}", path, e));
 
     Html(html)
 }
@@ -190,6 +194,20 @@ impl SharedHttpServerContext {
         Self {
             inner: Arc::new(Mutex::new(HttpServerContext::new())),
         }
+    }
+
+    pub fn set_web_dist_dir(&self, path: PathBuf) {
+        if let Ok(mut ctx) = self.inner.lock() {
+            ctx.web_dist_dir = Some(path);
+        }
+    }
+
+    pub fn web_dist_dir(&self) -> PathBuf {
+        let ctx = self.inner.lock().unwrap();
+
+        ctx.web_dist_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from("../dist"))
     }
 
     pub fn set_message_callback<F>(&self, callback: F)
@@ -208,6 +226,8 @@ impl SharedHttpServerContext {
     }
 
     fn build_router(self) -> Router {
+        let web_dist_dir = self.web_dist_dir();
+
         let cors = CorsLayer::new()
             .allow_origin(Any)
             .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
@@ -224,8 +244,12 @@ impl SharedHttpServerContext {
             )
             .route("/download/{id}", get(http_file::download_root_file))
             .route("/download/{id}/{*sub_path}", get(http_file::download_file))
-            .nest_service("/assets", get_service(ServeDir::new("../dist/assets")))
             .route("/", get(web_index))
+            .nest_service(
+                "/assets",
+                get_service(ServeDir::new(web_dist_dir.join("assets"))),
+            )
+            //.route("/meta.json", get(web_meta()))
             .route_layer(middleware::from_fn_with_state(
                 self.clone(),
                 access_guard_middleware,

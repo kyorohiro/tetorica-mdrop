@@ -31,6 +31,7 @@ use crate::http_utils::{content_disposition_inline, natural_sort_key, parse_rang
 use crate::http_utils::{
     content_type_from_path, escape_header_value, escape_html, url_encode_path_segment,
 };
+
 pub async fn api_get_download_lists(
     AxumState(state): AxumState<SharedHttpServerContext>,
 ) -> String {
