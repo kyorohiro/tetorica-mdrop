@@ -216,7 +216,8 @@ impl SharedHttpServerContext {
         Router::new()
             .route("/hello", get(hello::hello()))
             //.route("/", get(http_file::index_get))
-            .route("/api/download_list", get(http_file::api_get_download_lists))
+            .route("/api/downloadList", get(http_file::api_get_download_lists))
+            .route("/api/files", get(http_file::api_get_files))
             .route(
                 "/message",
                 get(receive_message_get).post(receive_message_post),
