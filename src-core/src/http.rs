@@ -1,11 +1,12 @@
 use axum::http::Method;
 use axum::middleware::{self};
-use axum::{routing::get, Router};
-
+use axum::routing::get_service;
 use axum::{
     extract::{ConnectInfo, Query, State as AxumState},
     response::Html,
 };
+use axum::{routing::get, Router};
+use tower_http::services::ServeDir;
 
 use axum_server::tls_rustls::RustlsConfig;
 use local_ip_address::local_ip;
@@ -177,6 +178,13 @@ pub struct SharedHttpServerContext {
     pub inner: Arc<Mutex<HttpServerContext>>,
 }
 
+
+async fn web_index() -> Html<String> {
+    let html = fs::read_to_string("../dist/web.html").expect("failed to read ../dist/web.html");
+
+    Html(html)
+}
+
 impl SharedHttpServerContext {
     pub fn new() -> Self {
         Self {
@@ -207,10 +215,16 @@ impl SharedHttpServerContext {
 
         Router::new()
             .route("/hello", get(hello::hello()))
-            .route("/", get(http_file::index_get))
-            .route("/message", get(receive_message_get).post(receive_message_post))
+            //.route("/", get(http_file::index_get))
+            .route("/api/download_list", get(http_file::api_get_download_lists))
+            .route(
+                "/message",
+                get(receive_message_get).post(receive_message_post),
+            )
             .route("/download/{id}", get(http_file::download_root_file))
             .route("/download/{id}/{*sub_path}", get(http_file::download_file))
+            .nest_service("/assets", get_service(ServeDir::new("../dist/assets")))
+            .route("/", get(web_index))
             .route_layer(middleware::from_fn_with_state(
                 self.clone(),
                 access_guard_middleware,

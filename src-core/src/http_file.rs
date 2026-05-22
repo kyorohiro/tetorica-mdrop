@@ -18,6 +18,30 @@ use crate::http_utils::{content_disposition_inline, natural_sort_key, parse_rang
 use crate::http_utils::{
     content_type_from_path, escape_header_value, escape_html, url_encode_path_segment,
 };
+pub async fn api_get_download_lists(
+    AxumState(state): AxumState<SharedHttpServerContext>,
+) -> String {
+    let context = state.inner.lock().unwrap();
+    let filesDict = context.files.clone();
+    let mut files: Vec<serde_json::Value>= vec![];
+    for ele in filesDict.iter() {
+        //files.push(ele.0.to_string());
+        let p = &ele.1;
+
+        let s = p.to_string_lossy().to_string();
+
+        let v = serde_json::json!({
+            "id": ele.0.to_string(),
+            "path": s,
+            "isFile": p.is_file(),
+            "isDir": p.is_dir(),
+        });
+        files.push(v);
+    }
+
+    return serde_json::to_string(&files).unwrap();
+}
+
 pub async fn index_get(
     AxumState(state): AxumState<SharedHttpServerContext>,
     //Path(id): Path<String>,
@@ -203,9 +227,7 @@ async fn directory_response(
     }
 
     //entry_infos.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    entry_infos.sort_by(|a, b| {
-        natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name))
-    });
+    entry_infos.sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
     for entry in entry_infos {
         let suffix = if entry.is_dir { "/" } else { "" };
         let label = escape_html(&entry.name);
@@ -290,7 +312,7 @@ async fn file_response(
             )
             .header(
                 header::CONTENT_DISPOSITION,
-                 content_disposition_inline(filename),
+                content_disposition_inline(filename),
             )
             .body(body)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
