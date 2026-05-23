@@ -1,5 +1,8 @@
-use axum::http::Method;
+use axum::body::Body;
+use axum::extract::Path;
+use axum::http::{Method, StatusCode, header};
 use axum::middleware::{self};
+use axum::response::{IntoResponse, Response};
 use axum::routing::get_service;
 use axum::{
     extract::{ConnectInfo, Query, State as AxumState},
@@ -23,9 +26,15 @@ use std::{
 use tokio::{net::TcpListener, sync::oneshot};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::hello;
+use crate::{hello, http_api};
 use crate::http_file;
 use crate::http_utils::{access_guard_middleware, list_ips};
+//
+//
+use rust_embed::RustEmbed;
+#[derive(RustEmbed)]
+#[folder = "../dist"]
+struct WebAssets;
 
 #[derive(Debug, Deserialize)]
 struct MessageQuery {
@@ -180,13 +189,27 @@ pub struct SharedHttpServerContext {
     pub inner: Arc<Mutex<HttpServerContext>>,
 }
 
-async fn web_index(AxumState(state): AxumState<SharedHttpServerContext>) -> Html<String> {
-    let path = state.web_dist_dir().join("web.html");
+async fn web_index() -> impl IntoResponse {
+    embedded_file_response("web.html")
+}
 
-    let html =
-        fs::read_to_string(&path).unwrap_or_else(|e| format!("failed to read {:?}: {}", path, e));
+async fn web_asset(Path(path): Path<String>) -> impl IntoResponse {
+    embedded_file_response(&format!("assets/{path}"))
+}
 
-    Html(html)
+fn embedded_file_response(path: &str) -> Response {
+    match WebAssets::get(path) {
+        Some(file) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, mime.as_ref())
+                .body(Body::from(file.data.into_owned()))
+                .unwrap()
+        }
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 impl SharedHttpServerContext {
@@ -236,8 +259,8 @@ impl SharedHttpServerContext {
         Router::new()
             .route("/hello", get(hello::hello()))
             //.route("/", get(http_file::index_get))
-            .route("/api/downloadList", get(http_file::api_get_download_lists))
-            .route("/api/files", get(http_file::api_get_files))
+            .route("/api/downloadList", get(http_api::api_get_download_lists))
+            .route("/api/files", get(http_api::api_get_files))
             .route(
                 "/message",
                 get(receive_message_get).post(receive_message_post),
@@ -245,10 +268,12 @@ impl SharedHttpServerContext {
             .route("/download/{id}", get(http_file::download_root_file))
             .route("/download/{id}/{*sub_path}", get(http_file::download_file))
             .route("/", get(web_index))
-            .nest_service(
-                "/assets",
-                get_service(ServeDir::new(web_dist_dir.join("assets"))),
-            )
+            .route("/assets/{*path}", get(web_asset))
+            //.route("/", get(web_index))
+            //.nest_service(
+            //    "/assets",
+            //    get_service(ServeDir::new(web_dist_dir.join("assets"))),
+            //)
             //.route("/meta.json", get(web_meta()))
             .route_layer(middleware::from_fn_with_state(
                 self.clone(),
