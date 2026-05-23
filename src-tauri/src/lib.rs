@@ -44,17 +44,6 @@ pub fn run() {
 
             let app_handle = app.handle().clone();
 
-            let resource_dir = app_handle
-                .path()
-                .resource_dir()
-                .map_err(|e| e.to_string())?;
-
-            let web_dist_dir = resource_dir.join("dist");
-
-            println!("web_dist_dir = {:?}", web_dist_dir);
-
-            server2.set_web_dist_dir(web_dist_dir);
-
             server2.set_message_callback(move |msg| {
                 println!("callback received: {:?}", msg);
 

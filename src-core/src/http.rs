@@ -152,7 +152,6 @@ pub struct HttpServerContext {
     pub local_only: bool,
     pub files: HashMap<String, PathBuf>,
     pub message_callback: Option<MessageCallback>,
-    pub web_dist_dir: Option<PathBuf>,
 }
 
 impl HttpServerContext {
@@ -163,7 +162,6 @@ impl HttpServerContext {
             local_only: true,
             files: HashMap::new(),
             message_callback: None,
-            web_dist_dir: None,
         }
     }
 
@@ -219,20 +217,6 @@ impl SharedHttpServerContext {
         }
     }
 
-    pub fn set_web_dist_dir(&self, path: PathBuf) {
-        if let Ok(mut ctx) = self.inner.lock() {
-            ctx.web_dist_dir = Some(path);
-        }
-    }
-
-    pub fn web_dist_dir(&self) -> PathBuf {
-        let ctx = self.inner.lock().unwrap();
-
-        ctx.web_dist_dir
-            .clone()
-            .unwrap_or_else(|| PathBuf::from("../dist"))
-    }
-
     pub fn set_message_callback<F>(&self, callback: F)
     where
         F: Fn(ReceivedMessage) + Send + Sync + 'static,
@@ -249,7 +233,6 @@ impl SharedHttpServerContext {
     }
 
     fn build_router(self) -> Router {
-        let web_dist_dir = self.web_dist_dir();
 
         let cors = CorsLayer::new()
             .allow_origin(Any)
