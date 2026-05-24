@@ -3,6 +3,8 @@ import { File, Folder, Loader, Archive } from "lucide-react";
 import {
     BlobReader,
     BlobWriter,
+    ERR_ENCRYPTED,
+    ERR_INVALID_PASSWORD,
     HttpReader,
     ZipReader,
     type Entry,
@@ -35,47 +37,47 @@ const collator = new Intl.Collator("ja", {
 });
 
 export const mimeFromPath = (path: string): string => {
-  const lower = path.toLowerCase();
+    const lower = path.toLowerCase();
 
-  if (/\.(png)$/i.test(lower)) return "image/png";
-  if (/\.(jpe?g)$/i.test(lower)) return "image/jpeg";
-  if (/\.(webp)$/i.test(lower)) return "image/webp";
-  if (/\.(gif)$/i.test(lower)) return "image/gif";
-  if (/\.(svg)$/i.test(lower)) return "image/svg+xml";
-  if (/\.(avif)$/i.test(lower)) return "image/avif";
+    if (/\.(png)$/i.test(lower)) return "image/png";
+    if (/\.(jpe?g)$/i.test(lower)) return "image/jpeg";
+    if (/\.(webp)$/i.test(lower)) return "image/webp";
+    if (/\.(gif)$/i.test(lower)) return "image/gif";
+    if (/\.(svg)$/i.test(lower)) return "image/svg+xml";
+    if (/\.(avif)$/i.test(lower)) return "image/avif";
 
-  if (/\.(mp4|m4v)$/i.test(lower)) return "video/mp4";
-  if (/\.(webm)$/i.test(lower)) return "video/webm";
-  if (/\.(ogg|ogv)$/i.test(lower)) return "video/ogg";
-  if (/\.(mov)$/i.test(lower)) return "video/quicktime";
+    if (/\.(mp4|m4v)$/i.test(lower)) return "video/mp4";
+    if (/\.(webm)$/i.test(lower)) return "video/webm";
+    if (/\.(ogg|ogv)$/i.test(lower)) return "video/ogg";
+    if (/\.(mov)$/i.test(lower)) return "video/quicktime";
 
-  if (/\.(pdf)$/i.test(lower)) return "application/pdf";
+    if (/\.(pdf)$/i.test(lower)) return "application/pdf";
 
-  if (/\.(json)$/i.test(lower)) return "application/json";
-  if (/\.(html)$/i.test(lower)) return "text/html; charset=utf-8";
-  if (/\.(css)$/i.test(lower)) return "text/css; charset=utf-8";
-  if (/\.(js|jsx|ts|tsx)$/i.test(lower)) return "text/javascript; charset=utf-8";
-  if (/\.(md|markdown|txt|xml|rs|toml|yaml|yml|sql|sh|py|java|c|cpp|h)$/i.test(lower)) {
-    return "text/plain; charset=utf-8";
-  }
+    if (/\.(json)$/i.test(lower)) return "application/json";
+    if (/\.(html)$/i.test(lower)) return "text/html; charset=utf-8";
+    if (/\.(css)$/i.test(lower)) return "text/css; charset=utf-8";
+    if (/\.(js|jsx|ts|tsx)$/i.test(lower)) return "text/javascript; charset=utf-8";
+    if (/\.(md|markdown|txt|xml|rs|toml|yaml|yml|sql|sh|py|java|c|cpp|h)$/i.test(lower)) {
+        return "text/plain; charset=utf-8";
+    }
 
-  if (/\.(zip|cbz)$/i.test(lower)) return "application/zip";
+    if (/\.(zip|cbz)$/i.test(lower)) return "application/zip";
 
-  return "application/octet-stream";
+    return "application/octet-stream";
 };
 
 export const isImage = (path: string) =>
-  mimeFromPath(path).startsWith("image/");
+    mimeFromPath(path).startsWith("image/");
 
 export const isVideo = (path: string) =>
-  mimeFromPath(path).startsWith("video/");
+    mimeFromPath(path).startsWith("video/");
 
 export const isPdf = (path: string) =>
-  mimeFromPath(path) === "application/pdf";
+    mimeFromPath(path) === "application/pdf";
 
 export const isText = (path: string) =>
-  mimeFromPath(path).startsWith("text/") ||
-  mimeFromPath(path) === "application/json";
+    mimeFromPath(path).startsWith("text/") ||
+    mimeFromPath(path) === "application/json";
 
 const isZipLike = (path: string) => /\.(zip|cbz)$/i.test(path);
 
@@ -215,6 +217,7 @@ function isZipFileEntry(entry: Entry): entry is FileEntry {
 
 async function getZipEntryBlob(
     file: ZipTargetFile,
+    password?: string,
     onProgress?: (loaded: number, total: number) => void
 ): Promise<Blob> {
     const entry = file.entry;
@@ -222,11 +225,27 @@ async function getZipEntryBlob(
     if (!entry) throw new Error("zip entry is missing");
     if (!isZipFileEntry(entry)) throw new Error("zip entry is directory");
 
-    return await entry.getData(new BlobWriter(mimeFromPath(file.path)), {
-        onprogress: (loaded: number, total: number) => {
-            onProgress?.(loaded, total);
-        },
-    } as any);
+    try {
+        return await entry.getData(new BlobWriter(), {
+            password: password || undefined,
+            onprogress: (loaded: number, total: number) => {
+                onProgress?.(loaded, total);
+            },
+        } as any);
+    } catch (error: any) {
+        // エラーの型（クラス）で直接判定します
+        // ★ エラーの名前（name）が特定の文字列かどうかで判定する
+        console.log("> error ", error, error?.name);
+        if (error?.name === ERR_ENCRYPTED || error?.name === ERR_INVALID_PASSWORD) {
+            console.error("暗号化エラーをキャッチしました");
+            alert("wrong password");
+        } else if (`${error}`.includes(`File contains encrypted entry`)) {
+            alert("wrong password");
+        } else if (error) {
+            alert(`${error}`)
+        }
+        throw error;
+    }
 }
 
 export function useZipFileListDialog() {
@@ -257,6 +276,7 @@ function ZipFileListDialog({
     const [sort, setSort] = useState<SortMode>("comic");
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("");
+    const [password, setPassword] = useState("");
 
     const readerRef = useRef<ZipReader<BlobReader | HttpReader> | null>(null);
 
@@ -365,7 +385,7 @@ function ZipFileListDialog({
         let url;
         try {
             setLoading(true);
-            const entryBlob = await getZipEntryBlob(file, onProgress);
+            const entryBlob = await getZipEntryBlob(file, password, onProgress);
             url = URL.createObjectURL(entryBlob);
             const a = document.createElement("a");
             a.href = url;
@@ -393,6 +413,14 @@ function ZipFileListDialog({
                 </div>
 
                 <div className="flex shrink-0 gap-2">
+
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="zip password"
+                        className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1 text-xs text-slate-300"
+                    />
                     <button
                         type="button"
                         disabled={loading}
@@ -494,7 +522,7 @@ function ZipFileListDialog({
                                                         apiServer: "",
                                                         getObjectUrl: async (target, onProgress?: (loaded: number, total: number) => void) => {
                                                             const zipFile = target as ZipTargetFile;
-                                                            const entryBlob = await getZipEntryBlob(zipFile, onProgress);
+                                                            const entryBlob = await getZipEntryBlob(zipFile, password, onProgress);
                                                             return URL.createObjectURL(entryBlob);
                                                         },
                                                         download: async (target, onProgress?: (loaded: number, total: number) => void) => {
@@ -507,7 +535,7 @@ function ZipFileListDialog({
 
                                                 if (isZipLike(file.path)) {
                                                     setLoadingMessage(``);
-                                                    const innerBlob = await getZipEntryBlob(file, (loaded, total) => {
+                                                    const innerBlob = await getZipEntryBlob(file, password, (loaded, total) => {
                                                         setLoadingMessage(`${loaded}/${total}`)
                                                     });
 
