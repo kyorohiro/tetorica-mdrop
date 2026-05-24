@@ -40,7 +40,7 @@ export const isImage = (path: string) =>
 export const isVideo = (path: string) =>
     /\.(mp4|webm|ogg|ogv|mov|m4v)$/i.test(path);
 export const isText = (path: string) =>
-  /\.(txt|md|markdown|json|js|ts|tsx|jsx|css|html|xml|rs|toml|yaml|yml|sql|sh|py|java|c|cpp|h)$/i.test(path);
+    /\.(txt|md|markdown|json|js|ts|tsx|jsx|css|html|xml|rs|toml|yaml|yml|sql|sh|py|java|c|cpp|h)$/i.test(path);
 
 const isZipLike = (path: string) => /\.(zip|cbz)$/i.test(path);
 
@@ -85,6 +85,37 @@ const parentPathOf = (path: string) => {
     return parent ? `/${parent}` : "/";
 };
 
+const filenameFromTitle = (title?: string) => {
+    const name = title?.trim() || "archive.zip";
+    return /\.(zip|cbz)$/i.test(name) ? name : `${name}.zip`;
+};
+
+const downloadCurrentArchive = async (source: ZipSource, title?: string) => {
+    if (source.type === "url") {
+        const a = document.createElement("a");
+        a.href = source.url;
+        a.download = filenameFromTitle(title);
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+    }
+
+    const url = URL.createObjectURL(source.blob);
+
+    try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filenameFromTitle(title);
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+};
 function listZipEntriesFromEntries(
     entries: Entry[],
     dir: string
@@ -321,18 +352,38 @@ function ZipFileListDialog({
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
                 <div className="min-w-0">
                     <h2 className="truncate text-lg font-semibold">
-                        {title ?? "Archive"} {loading?loadingMessage:""}
+                        {title ?? "Archive"} {loading ? loadingMessage : ""}
                     </h2>
                     <div className="break-all text-xs text-slate-400">{path}</div>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
-                >
-                    Close
-                </button>
+                <div className="flex shrink-0 gap-2">
+                    <button
+                        type="button"
+                        disabled={loading}
+                        onClick={async () => {
+                            if (loading) return;
+
+                            try {
+                                setLoading(true);
+                                await downloadCurrentArchive(source, title);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                        className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                    >
+                        Download
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                    >
+                        Close
+                    </button>
+                </div>
             </div>
 
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
@@ -421,7 +472,7 @@ function ZipFileListDialog({
 
                                                 if (isZipLike(file.path)) {
                                                     setLoadingMessage(``);
-                                                    const innerBlob = await getZipEntryBlob(file, (loaded, total)=>{
+                                                    const innerBlob = await getZipEntryBlob(file, (loaded, total) => {
                                                         setLoadingMessage(`${loaded}/${total}`)
                                                     });
 
