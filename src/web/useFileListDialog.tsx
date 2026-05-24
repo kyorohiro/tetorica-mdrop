@@ -3,7 +3,7 @@ import { File, Folder, Loader } from "lucide-react";
 import { useDialog } from "../useDialog";
 import { TargetFile, getFiles } from "./api";
 import { downloadUrl, usePreviewDialog } from "./usePreviewDialog";
-import { useZipFileListDialog } from "./useZipFileListDialog";
+import { isImage, isVideo, useZipFileListDialog } from "./useZipFileListDialog";
 
 type SortMode = "name" | "modifiedAt" | "comic";
 
@@ -191,7 +191,7 @@ function FileListDialog({
                                         className="w-full text-left"
 
                                         onClick={async () => {
-                                            if (/\.(png|jpe?g|webp|gif|svg|avif)$/i.test(file.path)) {
+                                            if (isImage(file.path) || isVideo(file.path)) {
                                                 const index = sortedFiles.findIndex((f) => f.path === file.path);
 
                                                 await showPreviewDialog({

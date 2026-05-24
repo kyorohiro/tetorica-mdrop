@@ -124,13 +124,13 @@ async fn download_file_inner(
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
     if metadata.is_dir() {
-        println!(">> file dir {:?}", path.as_path().to_str());
+        //println!(">> file dir {:?}", path.as_path().to_str());
         return directory_response(&id, sub_path.as_deref(), &path).await;
         //return directory_response(&id, &path).await;
     }
 
     if metadata.is_file() {
-        println!(">> file {:?}", path.as_path().to_str());
+        //println!(">> file {:?}", path.as_path().to_str());
         return file_response(&path, metadata.len(), headers).await;
     }
 

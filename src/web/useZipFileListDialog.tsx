@@ -34,8 +34,12 @@ const collator = new Intl.Collator("ja", {
     sensitivity: "base",
 });
 
-const isImage = (path: string) =>
+export const isImage = (path: string) =>
     /\.(png|jpe?g|webp|gif|svg|avif)$/i.test(path);
+
+export const isVideo = (path: string) =>
+    /\.(mp4|webm|ogg|ogv|mov|m4v)$/i.test(path);
+
 
 const isZipLike = (path: string) => /\.(zip|cbz)$/i.test(path);
 
@@ -142,13 +146,20 @@ function isZipFileEntry(entry: Entry): entry is FileEntry {
     return !entry.directory;
 }
 
-async function getZipEntryBlob(file: ZipTargetFile): Promise<Blob> {
+async function getZipEntryBlob(
+    file: ZipTargetFile,
+    onProgress?: (loaded: number, total: number) => void
+): Promise<Blob> {
     const entry = file.entry;
 
     if (!entry) throw new Error("zip entry is missing");
     if (!isZipFileEntry(entry)) throw new Error("zip entry is directory");
 
-    return await entry.getData(new BlobWriter());
+    return await entry.getData(new BlobWriter(), {
+        onprogress: (loaded: number, total: number) => {
+            onProgress?.(loaded, total);
+        },
+    } as any);
 }
 
 export function useZipFileListDialog() {
@@ -178,6 +189,7 @@ function ZipFileListDialog({
     const [files, setFiles] = useState<ZipTargetFile[]>([]);
     const [sort, setSort] = useState<SortMode>("comic");
     const [loading, setLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState("");
 
     const readerRef = useRef<ZipReader<BlobReader | HttpReader> | null>(null);
 
@@ -282,11 +294,11 @@ function ZipFileListDialog({
         return next;
     }, [files, sort, path]);
 
-    const downloadZipEntry = async (file: ZipTargetFile) => {
+    const downloadZipEntry = async (file: ZipTargetFile, onProgress?: (loaded: number, total: number) => void) => {
         let url;
         try {
             setLoading(true);
-            const entryBlob = await getZipEntryBlob(file);
+            const entryBlob = await getZipEntryBlob(file, onProgress);
             url = URL.createObjectURL(entryBlob);
             const a = document.createElement("a");
             a.href = url;
@@ -308,7 +320,7 @@ function ZipFileListDialog({
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
                 <div className="min-w-0">
                     <h2 className="truncate text-lg font-semibold">
-                        {title ?? "Archive"}
+                        {title ?? "Archive"} {loading?loadingMessage:""}
                     </h2>
                     <div className="break-all text-xs text-slate-400">{path}</div>
                 </div>
@@ -380,10 +392,11 @@ function ZipFileListDialog({
                                             }
                                             try {
                                                 setLoading(true);
-                                                if (isImage(file.path)) {
-                                                    const previewFiles = sortedFiles.filter(
-                                                        (f) => f.isFile && isImage(f.path)
-                                                    );
+                                                if (isImage(file.path) || isVideo(file.path)) {
+                                                    const previewFiles = [...sortedFiles];
+                                                    //.filter(
+                                                    //    (f) => f.isFile && isImage(f.path)
+                                                    //);
                                                     const previewIndex = previewFiles.findIndex(
                                                         (f) => f.path === file.path
                                                     );
@@ -392,13 +405,13 @@ function ZipFileListDialog({
                                                         files: previewFiles,
                                                         initialIndex: previewIndex,
                                                         apiServer: "",
-                                                        getObjectUrl: async (target) => {
+                                                        getObjectUrl: async (target, onProgress?: (loaded: number, total: number) => void) => {
                                                             const zipFile = target as ZipTargetFile;
-                                                            const entryBlob = await getZipEntryBlob(zipFile);
+                                                            const entryBlob = await getZipEntryBlob(zipFile, onProgress);
                                                             return URL.createObjectURL(entryBlob);
                                                         },
-                                                        download: async (target) => {
-                                                            await downloadZipEntry(target as ZipTargetFile);
+                                                        download: async (target, onProgress?: (loaded: number, total: number) => void) => {
+                                                            await downloadZipEntry(target as ZipTargetFile, onProgress);
                                                         },
                                                     });
 
@@ -406,7 +419,10 @@ function ZipFileListDialog({
                                                 }
 
                                                 if (isZipLike(file.path)) {
-                                                    const innerBlob = await getZipEntryBlob(file);
+                                                    setLoadingMessage(``);
+                                                    const innerBlob = await getZipEntryBlob(file, (loaded, total)=>{
+                                                        setLoadingMessage(`${loaded}/${loading}`)
+                                                    });
 
                                                     await showZipFileListDialog({
                                                         title: filename,
