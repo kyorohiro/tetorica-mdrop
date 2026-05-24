@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
-import { isAudio, isImage, isText, isVideo } from "./useZipFileListDialog";
+import { isAudio, isImage, isPdf, isText, isVideo } from "./useZipFileListDialog";
 
 type PreviewDialogOptions = {
     files: TargetFile[];
@@ -194,6 +194,12 @@ function PreviewDialog({
                         src={src}
                         alt={file.path}
                         className="max-h-full max-w-full object-contain"
+                    />
+                ) : isPdf(file.path) ? (
+                    <iframe
+                        src={src}
+                        title={file.path}
+                        className="h-full w-full bg-white"
                     />
                 ) : isText(file.path) ? (
                     <pre className="h-full w-full overflow-auto whitespace-pre-wrap break-words bg-slate-950 p-4 text-left text-xs text-slate-100">

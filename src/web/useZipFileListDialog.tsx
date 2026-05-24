@@ -518,7 +518,7 @@ function ZipFileListDialog({
                                             }
                                             try {
                                                 setLoading(true);
-                                                if (isImage(file.path) || isVideo(file.path) || isText(file.path)|| isAudio(file.path)) {
+                                                if (isImage(file.path) || isVideo(file.path) || isText(file.path)|| isAudio(file.path) || isPdf(file.path)) {
                                                     const previewFiles = [...sortedFiles];
                                                     //.filter(
                                                     //    (f) => f.isFile && isImage(f.path)
