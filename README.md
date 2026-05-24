@@ -114,7 +114,7 @@ Perfect for training sessions and events
 
 ---
 
-Tech Stack
+# Tech Stack
 
 * Tauri
 * Axum
@@ -124,7 +124,7 @@ Tech Stack
 
 ---
 
-Future Ideas
+# Future Ideas
 
 * LAN-based P2P distribution (swarm)
 * Download progress tracking
@@ -134,18 +134,9 @@ Future Ideas
 
 ---
 
-License
+# License
 
 MIT
-
----
-
-Author
-
-Tetorica Project
-
----
-```
 
 
 # Q/A
