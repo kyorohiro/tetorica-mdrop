@@ -39,7 +39,8 @@ export const isImage = (path: string) =>
 
 export const isVideo = (path: string) =>
     /\.(mp4|webm|ogg|ogv|mov|m4v)$/i.test(path);
-
+export const isText = (path: string) =>
+  /\.(txt|md|markdown|json|js|ts|tsx|jsx|css|html|xml|rs|toml|yaml|yml|sql|sh|py|java|c|cpp|h)$/i.test(path);
 
 const isZipLike = (path: string) => /\.(zip|cbz)$/i.test(path);
 
@@ -392,7 +393,7 @@ function ZipFileListDialog({
                                             }
                                             try {
                                                 setLoading(true);
-                                                if (isImage(file.path) || isVideo(file.path)) {
+                                                if (isImage(file.path) || isVideo(file.path) || isText(file.path)) {
                                                     const previewFiles = [...sortedFiles];
                                                     //.filter(
                                                     //    (f) => f.isFile && isImage(f.path)
@@ -421,7 +422,7 @@ function ZipFileListDialog({
                                                 if (isZipLike(file.path)) {
                                                     setLoadingMessage(``);
                                                     const innerBlob = await getZipEntryBlob(file, (loaded, total)=>{
-                                                        setLoadingMessage(`${loaded}/${loading}`)
+                                                        setLoadingMessage(`${loaded}/${total}`)
                                                     });
 
                                                     await showZipFileListDialog({

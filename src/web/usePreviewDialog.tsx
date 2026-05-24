@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
-import { isImage, isVideo } from "./useZipFileListDialog";
+import { isImage, isText, isVideo } from "./useZipFileListDialog";
 
 type PreviewDialogOptions = {
     files: TargetFile[];
     initialIndex: number;
     apiServer?: string;
-    getObjectUrl?: (file: TargetFile, onProgress?:(loaded:number,total:number)=>void) => Promise<string>;
-    download?: (file: TargetFile, onProgress?:(loaded:number,total:number)=>void) => Promise<void>;
+    getObjectUrl?: (file: TargetFile, onProgress?: (loaded: number, total: number) => void) => Promise<string>;
+    download?: (file: TargetFile, onProgress?: (loaded: number, total: number) => void) => Promise<void>;
 };
 
 export const downloadUrl = (apiServer: string, file: TargetFile): string => {
@@ -52,6 +52,7 @@ function PreviewDialog({
 }: PreviewDialogOptions & { onClose: () => void }) {
     const [index, setIndex] = React.useState(initialIndex);
     const [src, setSrc] = React.useState("");
+    const [text, setText] = React.useState("");
     const [loadingMessage, setLoadingMessage] = useState("");
 
     const file = files[index];
@@ -73,10 +74,10 @@ function PreviewDialog({
 
         const run = async () => {
             setSrc("");
-
+            setText("");
             setLoadingMessage(``)
             const nextSrc = getObjectUrl
-                ? await getObjectUrl(file, (loaded,total)=>{
+                ? await getObjectUrl(file, (loaded, total) => {
                     setLoadingMessage(`${loaded}/${total}`)
                 })
                 : downloadUrl(apiServer, file);
@@ -87,12 +88,21 @@ function PreviewDialog({
                 }
                 return;
             }
-
-            if (nextSrc.startsWith("blob:")) {
-                objectUrl = nextSrc;
+            if (isText(file.path)) {
+                const resp = await fetch(nextSrc);
+                const nextText = await resp.text();
+                if (!alive) return;
+                setText(nextText);
+                if (nextSrc.startsWith("blob:")) {
+                    objectUrl = nextSrc;
+                }
+                return;
+            } else {
+                if (nextSrc.startsWith("blob:")) {
+                    objectUrl = nextSrc;
+                }
+                setSrc(nextSrc);
             }
-
-            setSrc(nextSrc);
         };
 
         run().catch(console.error);
@@ -130,7 +140,7 @@ function PreviewDialog({
                         type="button"
                         onClick={async () => {
                             if (download) {
-                                await download(file, (loaded, total)=>{
+                                await download(file, (loaded, total) => {
                                     setLoadingMessage(`${loaded}/${total}`)
                                 });
                                 return;
@@ -159,7 +169,7 @@ function PreviewDialog({
             </div>
 
             <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
-                {!src ? (
+                {!src && !text ? (
                     <div className="text-sm text-slate-400">Loading...</div>
                 ) : isVideo(file.path) ? (
                     <video
@@ -174,6 +184,10 @@ function PreviewDialog({
                         alt={file.path}
                         className="max-h-full max-w-full object-contain"
                     />
+                ) : isText(file.path) ? (
+                    <pre className="h-full w-full overflow-auto whitespace-pre-wrap break-words bg-slate-950 p-4 text-left text-xs text-slate-100">
+                        {text}
+                    </pre>
                 ) : (
                     <div className="text-sm text-slate-400">
                         Preview not supported

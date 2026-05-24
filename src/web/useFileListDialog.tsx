@@ -3,7 +3,7 @@ import { File, Folder, Loader } from "lucide-react";
 import { useDialog } from "../useDialog";
 import { TargetFile, getFiles } from "./api";
 import { downloadUrl, usePreviewDialog } from "./usePreviewDialog";
-import { isImage, isVideo, useZipFileListDialog } from "./useZipFileListDialog";
+import { isImage, isText, isVideo, useZipFileListDialog } from "./useZipFileListDialog";
 
 type SortMode = "name" | "modifiedAt" | "comic";
 
@@ -35,6 +35,14 @@ type FileListDialogOptions = {
     initialPath?: string;
 };
 
+const parentPathOf = (path: string) => {
+    const clean = path.replace(/\/+$/, "");
+    if (!clean || clean === "/") {
+        return "/";
+    }
+    const parent = clean.split("/").slice(0, -1).join("/");
+    return parent || "/";
+};
 export function useFileListDialog() {
     const { showDialog } = useDialog();
 
@@ -65,29 +73,50 @@ function FileListDialog({
     const { showPreviewDialog } = usePreviewDialog();
     const { showZipFileListDialog } = useZipFileListDialog();
 
+
     const load = React.useCallback(
         async (nextPath: string) => {
-            console.log("> load")
             setLoading(true);
-            if (nextPath == "..") {
-                console.log(">> 1", path)
-                nextPath = path.split("/").slice(0, -1).join("/");
-            }
+
             try {
-                console.log(">> 2", nextPath);
-                const nextFiles = await getFiles(targetId, nextPath);
+                const resolvedPath = nextPath === ".."
+                    ? parentPathOf(path)
+                    : nextPath;
+
+                const nextFiles = await getFiles(targetId, resolvedPath);
                 setFiles(nextFiles ?? []);
-                setPath(nextPath);
+                setPath(resolvedPath);
             } finally {
                 setLoading(false);
             }
         },
-        [targetId]
+        [targetId, path]
     );
+    /*
+        const load = React.useCallback(
+            async (nextPath: string) => {
+                console.log("> load")
+                setLoading(true);
+                if (nextPath == "..") {
+                    console.log(">> 1", path)
+                    nextPath = path.split("/").slice(0, -1).join("/");
+                }
+                try {
+                    console.log(">> 2", nextPath);
+                    const nextFiles = await getFiles(targetId, nextPath);
+                    setFiles(nextFiles ?? []);
+                    setPath(nextPath);
+                } finally {
+                    setLoading(false);
+                }
+            },
+            [targetId]
+        );
+        */
 
     React.useEffect(() => {
         load(initialPath);
-    }, [load, initialPath]);
+    }, [initialPath]);
 
     const sortedFiles = useMemo<TargetFile[]>(() => {
         const next = [...files];
@@ -191,7 +220,7 @@ function FileListDialog({
                                         className="w-full text-left"
 
                                         onClick={async () => {
-                                            if (isImage(file.path) || isVideo(file.path)) {
+                                            if (isImage(file.path) || isVideo(file.path) || isText(file.path)) {
                                                 const index = sortedFiles.findIndex((f) => f.path === file.path);
 
                                                 await showPreviewDialog({
