@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
-import { isImage, isText, isVideo } from "./useZipFileListDialog";
+import { isAudio, isImage, isText, isVideo } from "./useZipFileListDialog";
 
 type PreviewDialogOptions = {
     files: TargetFile[];
@@ -167,7 +167,6 @@ function PreviewDialog({
                     </button>
                 </div>
             </div>
-
             <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
                 {!src && !text ? (
                     <div className="text-sm text-slate-400">Loading...</div>
@@ -178,6 +177,18 @@ function PreviewDialog({
                         autoPlay
                         className="max-h-full max-w-full"
                     />
+                ) : isAudio(file.path) ? (
+                    <div className="w-full max-w-2xl px-6 text-center">
+                        <div className="mb-4 break-all text-sm text-slate-300">
+                            {file.path}
+                        </div>
+                        <audio
+                            src={src}
+                            controls
+                            autoPlay
+                            className="w-full"
+                        />
+                    </div>
                 ) : isImage(file.path) ? (
                     <img
                         src={src}
