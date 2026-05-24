@@ -3,6 +3,8 @@ import "./App.css";
 import { Loader } from "lucide-react";
 import { getDownloadList, getMeta, Target } from "./api";
 import { useFileListDialog } from "./useFileListDialog";
+import { isAudio, isEpub, isImage, isPdf, isText, isVideo } from "./useZipFileListDialog";
+import { usePreviewDialog } from "./usePreviewDialog";
 
 ///
 const sleep = (ms: number): Promise<void> => {
@@ -16,6 +18,7 @@ function WebApp() {
     const [loading, setLoading] = useState(false);
     const mainRef = useRef<HTMLElement>(null);
     const { showFileListDialog } = useFileListDialog();
+    const { showPreviewDialog } = usePreviewDialog();
     //const [current
 
     //
@@ -97,18 +100,30 @@ function WebApp() {
                                         <div className="min-w-0">
 
                                             {file.isFile &&
-                                                <a
+                                                <div
 
-                                                    className="truncate font-medium text-sky-300 hover:underline"
+                                                    className="break-all font-medium text-sky-300 hover:underline"
 
-                                                    href={`${apiServer}/download/${file.id}`}
+                                                    //href={`${apiServer}/download/${file.id}`}
+                                                    onClick={async () => {
+                                                        if (isImage(file.path) || isVideo(file.path) || isText(file.path) || isAudio(file.path) || isPdf(file.path) || isEpub(file.path)) {
+                                                            //const index = sortedFiles.findIndex((f) => f.path === file.path);
+
+                                                            await showPreviewDialog({
+                                                                files: [{...file, createdAt: 0, modifiedAt:0, size:0, isRoot: true}],
+                                                                initialIndex: 0,
+                                                                apiServer,
+                                                            });
+                                                            return false;
+                                                        }
+                                                    }}
                                                 >
 
                                                     <div className="truncate font-medium text-slate-100">
                                                         {filename}
                                                     </div>
 
-                                                </a>
+                                                </div>
                                             }
                                             {!file.isFile &&
                                                 <div className="truncate font-medium text-slate-100" onClick={() => {

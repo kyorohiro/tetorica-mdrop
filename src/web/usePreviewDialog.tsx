@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
-import { isAudio, isImage, isPdf, isText, isVideo } from "./useZipFileListDialog";
+import { ReactReader } from "react-reader";
+import { isAudio, isImage, isPdf, isText, isVideo, isEpub } from "./useZipFileListDialog";
 
 type PreviewDialogOptions = {
     files: TargetFile[];
@@ -12,6 +13,7 @@ type PreviewDialogOptions = {
 };
 
 export const downloadUrl = (apiServer: string, file: TargetFile): string => {
+    console.log(">dowbloadUrl")
     const encodePath = (path: string) =>
         path
             .split("/")
@@ -23,7 +25,7 @@ export const downloadUrl = (apiServer: string, file: TargetFile): string => {
             .join("/");
 
     return `${apiServer}/download/${encodeURIComponent(file.id)}${encodePath(
-        file.path ?? "/"
+        file.isRoot ? "" : file.path ?? "/"
     )}`;
 };
 
@@ -53,6 +55,8 @@ function PreviewDialog({
     const [index, setIndex] = React.useState(initialIndex);
     const [src, setSrc] = React.useState("");
     const [text, setText] = React.useState("");
+    const [epubLocation, setEpubLocation] = React.useState<string | number>(0);
+    const renditionRef = React.useRef<any>(null);
     const [loadingMessage, setLoadingMessage] = useState("");
 
     const file = files[index];
@@ -81,6 +85,7 @@ function PreviewDialog({
                     setLoadingMessage(`${loaded}/${total}`)
                 })
                 : downloadUrl(apiServer, file);
+            console.log(">> nextSrc", nextSrc)
 
             if (!alive) {
                 if (nextSrc.startsWith("blob:")) {
@@ -89,6 +94,7 @@ function PreviewDialog({
                 return;
             }
             if (isText(file.path)) {
+                console.log(">text")
                 const resp = await fetch(nextSrc);
                 const nextText = await resp.text();
                 if (!alive) return;
@@ -98,6 +104,7 @@ function PreviewDialog({
                 }
                 return;
             } else {
+                console.log(">eles")
                 if (nextSrc.startsWith("blob:")) {
                     objectUrl = nextSrc;
                 }
@@ -205,6 +212,20 @@ function PreviewDialog({
                     <pre className="h-full w-full overflow-auto whitespace-pre-wrap break-words bg-slate-950 p-4 text-left text-xs text-slate-100">
                         {text}
                     </pre>
+                ) : isEpub(file.path) ? (
+                    <div className="h-full w-full bg-white text-black">
+                        <ReactReader
+                            epubInitOptions={{ openAs: 'epub' }}
+                            url={src}
+                            location={epubLocation}
+                            locationChanged={(nextLocation: string) => {
+                                setEpubLocation(nextLocation);
+                            }}
+                            getRendition={(rendition) => {
+                                renditionRef.current = rendition;
+                            }}
+                        />
+                    </div>
                 ) : (
                     <div className="text-sm text-slate-400">
                         Preview not supported

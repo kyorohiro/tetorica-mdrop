@@ -1,7 +1,7 @@
 {
   "name": "tetorica-mdrop",
   "private": true,
-  "version": "0.4.7",
+  "version": "0.4.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,7 +17,8 @@
     "lucide-react": "^1.16.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-reader": "^2.0.15"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",

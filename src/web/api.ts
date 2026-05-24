@@ -14,6 +14,7 @@ type TargetFile = {
     size: number,
     createdAt: number,
     modifiedAt: number,
+    isRoot?: boolean,
 }
 const getMeta = async (): Promise<{ apiServer: string }> => {
     const metaResp = await fetch("./meta.json");
