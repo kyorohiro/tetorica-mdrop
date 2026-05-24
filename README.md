@@ -10,10 +10,9 @@ Just drag and drop files, and any device on the same Wi-Fi can download them thr
 
 https://kyorohiro.github.io/tetorica-mdrop/
 
-```
 ---
 
-Features
+# Features
 
 * Drag & Drop file sharing
 * Click to select files (file picker supported)
@@ -41,8 +40,9 @@ Features
 
 ---
 
-Quick Start
+# Quick Start
 
+```
 1. Start the server
 
 Launch the app and click:
@@ -67,20 +67,24 @@ http://<your-ip-address>:7878/
 
 Files will instantly appear in the list and become downloadable.
 
+```
 ---
 
-How It Works
+# How It Works
 
+```
 Drop a file on your Mac
 → Open the URL on your phone or other devices
 → Select the file and download
 
 No accounts, no uploads, no cloud.
 
+```
 ---
 
-Why Tetorica mDrop?
+# Why Tetorica mDrop?
 
+```
 Simpler than SMB
 
 * No permissions or credentials
@@ -98,9 +102,11 @@ Perfect for training sessions and events
 * No setup on client devices
 * Minimal troubleshooting
 
+```
+
 ---
 
-Limitations
+# Limitations
 
 * Performance depends on local network conditions
 * Large files and many simultaneous downloads may slow down
