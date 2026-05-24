@@ -38,7 +38,7 @@ pub fn run() {
             bonjour,
         })
         .setup(move |app| {
-            use tauri::Emitter;
+            use tauri::{Emitter, Manager};
 
             println!("setup message callback");
 
@@ -48,6 +48,7 @@ pub fn run() {
                 println!("callback received: {:?}", msg);
 
                 let ret = app_handle.emit("message-received", msg);
+
                 println!("emit result: {:?}", ret);
             });
 

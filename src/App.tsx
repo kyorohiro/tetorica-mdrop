@@ -237,58 +237,6 @@ function App() {
             <span className="font-bold">Error:</span> {errorMsg}
           </div>
         )}
-
-        {
-          //<section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
-          //  <h2 className="mb-3 text-lg font-semibold">Greeting</h2>
-          //  <p className="mb-4 rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-300">
-          //    {greetMsg || "No greeting yet."}
-          //  </p>
-          //  <Button onClick={greet}>Greet</Button>
-          //</section>
-        }
-        {
-          /*
-<section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
-  <div className="mb-4 flex items-center justify-between gap-4">
-    <h2 className="text-lg font-semibold">
-      Received Messages
-      <span className="ml-2 text-sm font-normal text-slate-400">
-        {receivedMessages.length}
-      </span>
-    </h2>
-
-    {receivedMessages.length > 0 && (
-      <button
-        type="button"
-        onClick={() => setReceivedMessages([])}
-        className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
-      >
-        Clear
-      </button>
-    )}
-  </div>
-
-  {receivedMessages.length === 0 ? (
-    <p className="text-sm text-slate-400">No messages yet.</p>
-  ) : (
-    <div className="space-y-3">
-      {receivedMessages.map((msg, index) => (
-        <div
-          key={index}
-          className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
-        >
-          <div className="mb-1 text-xs text-slate-500">
-            {msg.method} from {msg.from}
-          </div>
-          <div className="break-all text-slate-100">{msg.text}</div>
-        </div>
-      ))}
-    </div>
-  )}
-</section>
-*/
-}
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">

@@ -1,14 +1,25 @@
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+fn system_time_to_millis(t: SystemTime) -> Option<u128> {
+
+    t.duration_since(UNIX_EPOCH)
+
+        .ok()
+
+        .map(|d| d.as_millis())
+
+}
 
 use axum::http::HeaderMap;
 use axum::response::{Html, IntoResponse};
-use axum::Error;
 use axum::{body::Body, http::StatusCode};
 use axum::{
     extract::{Path, State as AxumState},
     http::header,
     response::Response,
 };
+use std::collections::HashMap;
 
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
@@ -18,6 +29,7 @@ use crate::http_utils::{content_disposition_inline, natural_sort_key, parse_rang
 use crate::http_utils::{
     content_type_from_path, escape_header_value, escape_html, url_encode_path_segment,
 };
+
 pub async fn index_get(
     AxumState(state): AxumState<SharedHttpServerContext>,
     //Path(id): Path<String>,
@@ -112,13 +124,13 @@ async fn download_file_inner(
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
     if metadata.is_dir() {
-        println!(">> file dir {:?}", path.as_path().to_str());
+        //println!(">> file dir {:?}", path.as_path().to_str());
         return directory_response(&id, sub_path.as_deref(), &path).await;
         //return directory_response(&id, &path).await;
     }
 
     if metadata.is_file() {
-        println!(">> file {:?}", path.as_path().to_str());
+        //println!(">> file {:?}", path.as_path().to_str());
         return file_response(&path, metadata.len(), headers).await;
     }
 
@@ -203,9 +215,7 @@ async fn directory_response(
     }
 
     //entry_infos.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    entry_infos.sort_by(|a, b| {
-        natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name))
-    });
+    entry_infos.sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
     for entry in entry_infos {
         let suffix = if entry.is_dir { "/" } else { "" };
         let label = escape_html(&entry.name);
@@ -290,7 +300,7 @@ async fn file_response(
             )
             .header(
                 header::CONTENT_DISPOSITION,
-                 content_disposition_inline(filename),
+                content_disposition_inline(filename),
             )
             .body(body)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));

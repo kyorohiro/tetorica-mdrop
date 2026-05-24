@@ -1,11 +1,15 @@
-use axum::http::Method;
+use axum::body::Body;
+use axum::extract::Path;
+use axum::http::{header, Method, StatusCode};
 use axum::middleware::{self};
-use axum::{routing::get, Router};
-
+use axum::response::{IntoResponse, Response};
+use axum::routing::get_service;
 use axum::{
     extract::{ConnectInfo, Query, State as AxumState},
     response::Html,
 };
+use axum::{routing::get, Router};
+use tower_http::services::ServeDir;
 
 use axum_server::tls_rustls::RustlsConfig;
 use local_ip_address::local_ip;
@@ -22,9 +26,15 @@ use std::{
 use tokio::{net::TcpListener, sync::oneshot};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::hello;
 use crate::http_file;
 use crate::http_utils::{access_guard_middleware, list_ips};
+use crate::{hello, http_api};
+//
+//
+use rust_embed::RustEmbed;
+#[derive(RustEmbed)]
+#[folder = "../dist"]
+struct WebAssets;
 
 #[derive(Debug, Deserialize)]
 struct MessageQuery {
@@ -177,6 +187,29 @@ pub struct SharedHttpServerContext {
     pub inner: Arc<Mutex<HttpServerContext>>,
 }
 
+async fn web_index() -> impl IntoResponse {
+    embedded_file_response("web.html")
+}
+
+async fn web_asset(Path(path): Path<String>) -> impl IntoResponse {
+    embedded_file_response(&format!("assets/{path}"))
+}
+
+fn embedded_file_response(path: &str) -> Response {
+    match WebAssets::get(path) {
+        Some(file) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, mime.as_ref())
+                .body(Body::from(file.data.into_owned()))
+                .unwrap()
+        }
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 impl SharedHttpServerContext {
     pub fn new() -> Self {
         Self {
@@ -202,15 +235,42 @@ impl SharedHttpServerContext {
     fn build_router(self) -> Router {
         let cors = CorsLayer::new()
             .allow_origin(Any)
-            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-            .allow_headers(Any);
-
+            //.allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_methods([Method::GET, Method::HEAD, Method::POST, Method::OPTIONS])
+            .allow_headers(Any)
+            .expose_headers([
+                header::ACCEPT_RANGES,
+                header::CONTENT_LENGTH,
+                header::CONTENT_RANGE,
+                header::CONTENT_TYPE,
+            ]);
         Router::new()
             .route("/hello", get(hello::hello()))
-            .route("/", get(http_file::index_get))
-            .route("/message", get(receive_message_get).post(receive_message_post))
-            .route("/download/{id}", get(http_file::download_root_file))
-            .route("/download/{id}/{*sub_path}", get(http_file::download_file))
+            //.route("/", get(http_file::index_get))
+            .route("/api/downloadList", get(http_api::api_get_download_lists))
+            .route("/api/files", get(http_api::api_get_files))
+            .route(
+                "/message",
+                get(receive_message_get).post(receive_message_post),
+            )
+            .route(
+                "/download/{id}",
+                get(http_file::download_root_file).head(http_file::download_root_file),
+            )
+            .route(
+                "/download/{id}/{*sub_path}",
+                get(http_file::download_file).head(http_file::download_file),
+            )
+            //.route("/download/{id}", get(http_file::download_root_file))
+            //.route("/download/{id}/{*sub_path}", get(http_file::download_file))
+            .route("/", get(web_index))
+            .route("/assets/{*path}", get(web_asset))
+            //.route("/", get(web_index))
+            //.nest_service(
+            //    "/assets",
+            //    get_service(ServeDir::new(web_dist_dir.join("assets"))),
+            //)
+            //.route("/meta.json", get(web_meta()))
             .route_layer(middleware::from_fn_with_state(
                 self.clone(),
                 access_guard_middleware,

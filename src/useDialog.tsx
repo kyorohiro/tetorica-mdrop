@@ -37,13 +37,32 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({
             {children}
 
             {/* 一番上だけ表示するスタック方式 */}
-            {stack.length > 0 && (
-                <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4">
-                    <div className="flex min-h-full items-center justify-center">
-                        {stack[stack.length - 1]?.node}
+            {
+            //stack.length > 0 && (
+            //    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4">
+            //        <div className="flex min-h-full items-center justify-center">
+            //            {stack[stack.length - 1]?.node}
+            //        </div>
+            //    </div>
+            //)
+            }
+            {stack.map((item, index) => {
+                const isTop = index === stack.length - 1;
+                return (
+                    <div
+                        key={item.id}
+                        className={[
+                            "fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4",
+                            isTop ? "block" : "hidden",
+                        ].join(" ")}
+                    >
+                        <div className="flex min-h-full items-center justify-center">
+                            {item.node}
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+
+            })}
         </DialogContext.Provider>
     );
 };
@@ -428,6 +447,10 @@ type ShowDialogHelpers<T> = {
 };
 
 
+const createDialogId = () => {
+    return `dialog-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 // eslint-disable-next-line react-refresh/only-export-components
 export function useDialog() {
     const { push, pop } = useDialogCore();
@@ -445,7 +468,7 @@ export function useDialog() {
             render: (helpers: ShowDialogHelpers<T>) => ReactNode
         ): Promise<T | null> => {
             return new Promise<T | null>((outerResolve) => {
-                const id = crypto.randomUUID();
+                const id = createDialogId();
 
                 const resolve = (value: T | null) => {
                     outerResolve(value);
