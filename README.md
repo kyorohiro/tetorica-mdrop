@@ -21,6 +21,23 @@ Features
 * Bonjour (mDNS) for automatic discovery
 * Works on iPhone / iPad / Windows / Mac
 * Fast local network transfer (no cloud needed)
+* Click to select files
+* Accessible from any browser
+* Bonjour / mDNS automatic discovery
+* Works on iPhone, iPad, Windows, and Mac
+* Fast local network transfer
+* ZIP / CBZ archive browsing
+* Nested ZIP support
+* Image preview
+* Video / Audio preview
+* PDF preview
+* EPUB preview
+* Text preview
+* Sequential preview for comics / photo collections
+* Works on iPhone / iPad / PC
+* No install on clients
+* No cloud
+* Browser-based viewer
 
 ---
 
