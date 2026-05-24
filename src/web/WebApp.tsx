@@ -110,11 +110,20 @@ function WebApp() {
                                                             //const index = sortedFiles.findIndex((f) => f.path === file.path);
 
                                                             await showPreviewDialog({
-                                                                files: [{...file, createdAt: 0, modifiedAt:0, size:0, isRoot: true}],
+                                                                files: [{ ...file, createdAt: 0, modifiedAt: 0, size: 0, isRoot: true }],
                                                                 initialIndex: 0,
                                                                 apiServer,
                                                             });
                                                             return false;
+                                                        } else {
+                                                            //`${apiServer}/download/${file.id}`
+                                                            const a = document.createElement("a");
+                                                            a.href = `${apiServer}/download/${file.id}`;
+                                                            a.download = file.path.replace(/.*\//, "") || "download";
+                                                        
+                                                            document.body.appendChild(a);
+                                                            a.click();
+                                                            document.body.removeChild(a);
                                                         }
                                                     }}
                                                 >
