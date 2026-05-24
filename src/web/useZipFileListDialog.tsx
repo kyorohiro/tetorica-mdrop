@@ -34,13 +34,48 @@ const collator = new Intl.Collator("ja", {
     sensitivity: "base",
 });
 
+export const mimeFromPath = (path: string): string => {
+  const lower = path.toLowerCase();
+
+  if (/\.(png)$/i.test(lower)) return "image/png";
+  if (/\.(jpe?g)$/i.test(lower)) return "image/jpeg";
+  if (/\.(webp)$/i.test(lower)) return "image/webp";
+  if (/\.(gif)$/i.test(lower)) return "image/gif";
+  if (/\.(svg)$/i.test(lower)) return "image/svg+xml";
+  if (/\.(avif)$/i.test(lower)) return "image/avif";
+
+  if (/\.(mp4|m4v)$/i.test(lower)) return "video/mp4";
+  if (/\.(webm)$/i.test(lower)) return "video/webm";
+  if (/\.(ogg|ogv)$/i.test(lower)) return "video/ogg";
+  if (/\.(mov)$/i.test(lower)) return "video/quicktime";
+
+  if (/\.(pdf)$/i.test(lower)) return "application/pdf";
+
+  if (/\.(json)$/i.test(lower)) return "application/json";
+  if (/\.(html)$/i.test(lower)) return "text/html; charset=utf-8";
+  if (/\.(css)$/i.test(lower)) return "text/css; charset=utf-8";
+  if (/\.(js|jsx|ts|tsx)$/i.test(lower)) return "text/javascript; charset=utf-8";
+  if (/\.(md|markdown|txt|xml|rs|toml|yaml|yml|sql|sh|py|java|c|cpp|h)$/i.test(lower)) {
+    return "text/plain; charset=utf-8";
+  }
+
+  if (/\.(zip|cbz)$/i.test(lower)) return "application/zip";
+
+  return "application/octet-stream";
+};
+
 export const isImage = (path: string) =>
-    /\.(png|jpe?g|webp|gif|svg|avif)$/i.test(path);
+  mimeFromPath(path).startsWith("image/");
 
 export const isVideo = (path: string) =>
-    /\.(mp4|webm|ogg|ogv|mov|m4v)$/i.test(path);
+  mimeFromPath(path).startsWith("video/");
+
+export const isPdf = (path: string) =>
+  mimeFromPath(path) === "application/pdf";
+
 export const isText = (path: string) =>
-    /\.(txt|md|markdown|json|js|ts|tsx|jsx|css|html|xml|rs|toml|yaml|yml|sql|sh|py|java|c|cpp|h)$/i.test(path);
+  mimeFromPath(path).startsWith("text/") ||
+  mimeFromPath(path) === "application/json";
 
 const isZipLike = (path: string) => /\.(zip|cbz)$/i.test(path);
 
@@ -187,7 +222,7 @@ async function getZipEntryBlob(
     if (!entry) throw new Error("zip entry is missing");
     if (!isZipFileEntry(entry)) throw new Error("zip entry is directory");
 
-    return await entry.getData(new BlobWriter(), {
+    return await entry.getData(new BlobWriter(mimeFromPath(file.path)), {
         onprogress: (loaded: number, total: number) => {
             onProgress?.(loaded, total);
         },
