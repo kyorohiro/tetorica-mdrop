@@ -1,6 +1,6 @@
 use axum::body::Body;
 use axum::extract::Path;
-use axum::http::{Method, StatusCode, header};
+use axum::http::{header, Method, StatusCode};
 use axum::middleware::{self};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get_service;
@@ -26,9 +26,9 @@ use std::{
 use tokio::{net::TcpListener, sync::oneshot};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::{hello, http_api};
 use crate::http_file;
 use crate::http_utils::{access_guard_middleware, list_ips};
+use crate::{hello, http_api};
 //
 //
 use rust_embed::RustEmbed;
@@ -233,12 +233,17 @@ impl SharedHttpServerContext {
     }
 
     fn build_router(self) -> Router {
-
         let cors = CorsLayer::new()
             .allow_origin(Any)
-            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-            .allow_headers(Any);
-
+            //.allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_methods([Method::GET, Method::HEAD, Method::POST, Method::OPTIONS])
+            .allow_headers(Any)
+            .expose_headers([
+                header::ACCEPT_RANGES,
+                header::CONTENT_LENGTH,
+                header::CONTENT_RANGE,
+                header::CONTENT_TYPE,
+            ]);
         Router::new()
             .route("/hello", get(hello::hello()))
             //.route("/", get(http_file::index_get))
@@ -248,8 +253,16 @@ impl SharedHttpServerContext {
                 "/message",
                 get(receive_message_get).post(receive_message_post),
             )
-            .route("/download/{id}", get(http_file::download_root_file))
-            .route("/download/{id}/{*sub_path}", get(http_file::download_file))
+            .route(
+                "/download/{id}",
+                get(http_file::download_root_file).head(http_file::download_root_file),
+            )
+            .route(
+                "/download/{id}/{*sub_path}",
+                get(http_file::download_file).head(http_file::download_file),
+            )
+            //.route("/download/{id}", get(http_file::download_root_file))
+            //.route("/download/{id}/{*sub_path}", get(http_file::download_file))
             .route("/", get(web_index))
             .route("/assets/{*path}", get(web_asset))
             //.route("/", get(web_index))
