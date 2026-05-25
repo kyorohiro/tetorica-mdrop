@@ -59,7 +59,9 @@ export const isText = (path: string) =>
 export const isEpub = (path: string) =>
     mimeFromPath(path) === "application/epub+zip";
 
-export const isZipLike = (path: string) => /\.(zip|cbz)$/i.test(path);
+//export const isZipLike = (path: string) => /\.(zip|cbz)$/i.test(path);
+export const isArchive = (path: string) =>
+  /\.(zip|cbz|rar|cbr)$/i.test(path);
 
 export const isCover = (path: string) => {
     const name = path.replace(/.*\//, "");

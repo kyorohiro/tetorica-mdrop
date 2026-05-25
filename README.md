@@ -220,6 +220,16 @@ cargo run -p tetorica-mdrop-cli -- ./some-file.mp4
 cargo run --features dev_web -p tetorica-mdrop-cli -- ./some-file.mp4
 ```
 
+# Warning:
+
+```
+Nested ZIP and RAR archives are currently streamed directly.
+
+Opening a single image may require transferring the entire archive again.
+
+Large archives may generate very high network traffic.
+```
+
 # Memo
 
 ```

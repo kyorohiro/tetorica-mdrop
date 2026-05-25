@@ -45,7 +45,7 @@ export const compareComic = (a: ZipTargetFile, b: ZipTargetFile) => {
     return compareByName(a, b);
 };
 
-interface ArchiveExtractor {
+export interface ArchiveExtractor {
   setPassword(password: string | undefined): void;
   list(path: string): Promise<ArchiveExtractorEntry[]>;
   read(path: string, onProgress?: (loaded: number, total: number) => void): Promise<Blob>;
@@ -207,4 +207,3 @@ export class ZipExtractor implements ArchiveExtractor {
     return results;
   }
 }
-

@@ -231,7 +231,7 @@ function FileListDialog({
                                                 });
                                             } else {
                                                 // showZipFileListDialog
-                                                if (file.path.endsWith(".zip") || file.path.endsWith(".cbz")) {
+                                                if (file.path.endsWith(".zip") || file.path.endsWith(".cbz")|| file.path.endsWith(".rar") || file.path.endsWith(".cbr")) {
                                                     await showZipFileListDialog({
                                                         title: filename,
                                                         source: {

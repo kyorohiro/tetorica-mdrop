@@ -9,7 +9,7 @@ import {
     isPdf,
     isText,
     isVideo,
-    isZipLike,
+    isArchive,
 } from "../utils";
 import {
     ZipExtractor,
@@ -17,7 +17,9 @@ import {
     type ArchiveExtractorEntry,
     compareByName,
     compareComic,
+    ArchiveExtractor,
 } from "./extractor";
+import { RarExtractor } from "./extractor_rar";
 type SortMode = "name" | "modifiedAt" | "comic";
 type ZipFileListDialogOptions = {
     title?: string;
@@ -27,6 +29,7 @@ type ZipFileListDialogOptions = {
 type ZipTargetFile = ArchiveExtractorEntry & {
     name?: string;
 };
+
 const parentPathOf = (path: string) => {
     const clean = ZipExtractor.normalizeZipPath(path).replace(/\/+$/, "");
     if (!clean) return "/";
@@ -35,8 +38,25 @@ const parentPathOf = (path: string) => {
 };
 const filenameFromTitle = (title?: string) => {
     const name = title?.trim() || "archive.zip";
-    return /\.(zip|cbz)$/i.test(name) ? name : `${name}.zip`;
+    return /\.(zip|cbz|rar|cbr)$/i.test(name) ? name : `${name}.zip`;
 };
+
+export const isRarLikePath = (path: string) =>
+  /\.(rar|cbr)$/i.test(path);
+
+export const isZipLikePath = (path: string) =>
+  /\.(zip|cbz)$/i.test(path);
+
+export const createArchiveExtractor = (source: ZipSource, title?: string): ArchiveExtractor => {
+  const name = title ?? "";
+
+  if (isRarLikePath(name)) {
+    return RarExtractor.createFromZipSource(source);
+  }
+
+  return ZipExtractor.createFromZipSource(source);
+};
+
 const downloadCurrentArchive = async (source: ZipSource, title?: string) => {
     if (source.type === "url") {
         const a = document.createElement("a");
@@ -86,15 +106,16 @@ function ZipFileListDialog({
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("");
     const [password, setPassword] = useState("");
-    const extractorRef = useRef<ZipExtractor | null>(null);
+    const extractorRef = useRef<ArchiveExtractor | null>(null);
     const { showPreviewDialog } = usePreviewDialog();
     const { showZipFileListDialog } = useZipFileListDialog();
+    
     React.useEffect(() => {
         let cancelled = false;
         const init = async () => {
             setLoading(true);
             try {
-                const extractor = ZipExtractor.createFromZipSource(source);
+                const extractor = createArchiveExtractor(source, title);
                 extractorRef.current = extractor;
                 const nextFiles = await extractor.list(initialPath);
                 if (cancelled) return;
@@ -111,7 +132,7 @@ function ZipFileListDialog({
             cancelled = true;
             extractorRef.current = null;
         };
-    }, [source, initialPath]);
+    }, [source, initialPath, title]);
     const readArchiveFile = React.useCallback(
         async (
             file: ZipTargetFile,
@@ -209,7 +230,7 @@ function ZipFileListDialog({
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="zip password"
+                        placeholder="archive password"
                         className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1 text-xs text-slate-300"
                     />
                     <button
@@ -321,7 +342,7 @@ function ZipFileListDialog({
                                                     });
                                                     return;
                                                 }
-                                                if (isZipLike(file.path)) {
+                                                if (isArchive(file.path)) {
                                                     setLoadingMessage("");
                                                     const innerBlob = await readArchiveFile(
                                                         file,
@@ -346,7 +367,7 @@ function ZipFileListDialog({
                                         }}
                                     >
                                         <div className="flex items-start gap-2 font-medium text-slate-100">
-                                            {isZipLike(file.path) ? (
+                                            {isArchive(file.path) ? (
                                                 <Archive className="mt-0.5 h-4 w-4 shrink-0 text-purple-300" />
                                             ) : (
                                                 <File className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
