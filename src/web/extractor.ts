@@ -8,13 +8,13 @@ import {
   type Entry,
   type FileEntry,
 } from "@zip.js/zip.js";
-import { mimeFromPath } from "../utils";
+import { isCover, mimeFromPath } from "../utils";
 
-type ZipSource =
+export type ZipSource =
   | { type: "blob"; blob: Blob }
   | { type: "url"; url: string };
 
-type ArchiveExtractorEntry = {
+export type ArchiveExtractorEntry = {
   id: string,
   path: string,
   isFile: boolean,
@@ -24,9 +24,25 @@ type ArchiveExtractorEntry = {
   modifiedAt: number,
 };
 
-type ZipTargetFile = ArchiveExtractorEntry & {
+export type ZipTargetFile = ArchiveExtractorEntry & {
   entry?: Entry;
   name?: string;
+};
+
+const collator = new Intl.Collator("ja", {
+    numeric: true,
+    sensitivity: "base",
+});
+
+export const compareByName = (a: ZipTargetFile, b: ZipTargetFile) =>
+    collator.compare(a.path, b.path);
+
+export const compareComic = (a: ZipTargetFile, b: ZipTargetFile) => {
+    if (a.isDir && !b.isDir) return -1;
+    if (!a.isDir && b.isDir) return 1;
+    if (isCover(a.path) && !isCover(b.path)) return -1;
+    if (!isCover(a.path) && isCover(b.path)) return 1;
+    return compareByName(a, b);
 };
 
 interface ArchiveExtractor {

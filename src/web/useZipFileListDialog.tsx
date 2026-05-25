@@ -1,83 +1,42 @@
 import React, { useMemo, useRef, useState } from "react";
 import { File, Folder, Loader, Archive } from "lucide-react";
-import {
-    BlobReader,
-    BlobWriter,
-    ERR_ENCRYPTED,
-    ERR_INVALID_PASSWORD,
-    HttpReader,
-    ZipReader,
-    type Entry,
-    type FileEntry,
-} from "@zip.js/zip.js";
 import { useDialog } from "../useDialog";
 import { usePreviewDialog } from "./usePreviewDialog";
-import type { TargetFile } from "./api";
-import { isAudio, isCover, isEpub, isImage, isPdf, isText, isVideo, isZipLike, mimeFromPath } from "../utils";
-
+import {
+    isAudio,
+    isEpub,
+    isImage,
+    isPdf,
+    isText,
+    isVideo,
+    isZipLike,
+} from "../utils";
+import {
+    ZipExtractor,
+    type ZipSource,
+    type ArchiveExtractorEntry,
+    compareByName,
+    compareComic,
+} from "./extractor";
 type SortMode = "name" | "modifiedAt" | "comic";
-
-type ZipSource =
-    | { type: "blob"; blob: Blob }
-    | { type: "url"; url: string };
-
 type ZipFileListDialogOptions = {
     title?: string;
     source: ZipSource;
     initialPath?: string;
 };
-
-type ZipTargetFile = TargetFile & {
-    entry?: Entry;
+type ZipTargetFile = ArchiveExtractorEntry & {
     name?: string;
 };
-
-const collator = new Intl.Collator("ja", {
-    numeric: true,
-    sensitivity: "base",
-});
-
-const compareByName = (a: ZipTargetFile, b: ZipTargetFile) =>
-    collator.compare(a.path, b.path);
-
-const compareComic = (a: ZipTargetFile, b: ZipTargetFile) => {
-    if (a.isDir && !b.isDir) return -1;
-    if (!a.isDir && b.isDir) return 1;
-    if (isCover(a.path) && !isCover(b.path)) return -1;
-    if (!isCover(a.path) && isCover(b.path)) return 1;
-    return compareByName(a, b);
-};
-
-const createZipReader = (source: ZipSource) => {
-    if (source.type === "blob") {
-        return new ZipReader(new BlobReader(source.blob));
-    } else {
-        return new ZipReader(new HttpReader(source.url, {
-            useRangeHeader: true,
-            preventHeadRequest: false,
-        } as any));
-    }
-};
-
-const normalizeZipPath = (path: string) => path.trim().replace(/^\/+/, "");
-
-const zipApiPath = (prefix: string, name: string) => {
-    if (!prefix) return `/${name}`;
-    return `/${prefix}${name}`;
-};
-
 const parentPathOf = (path: string) => {
-    const clean = normalizeZipPath(path).replace(/\/+$/, "");
+    const clean = ZipExtractor.normalizeZipPath(path).replace(/\/+$/, "");
     if (!clean) return "/";
     const parent = clean.split("/").slice(0, -1).join("/");
     return parent ? `/${parent}` : "/";
 };
-
 const filenameFromTitle = (title?: string) => {
     const name = title?.trim() || "archive.zip";
     return /\.(zip|cbz)$/i.test(name) ? name : `${name}.zip`;
 };
-
 const downloadCurrentArchive = async (source: ZipSource, title?: string) => {
     if (source.type === "url") {
         const a = document.createElement("a");
@@ -89,9 +48,7 @@ const downloadCurrentArchive = async (source: ZipSource, title?: string) => {
         document.body.removeChild(a);
         return;
     }
-
     const url = URL.createObjectURL(source.blob);
-
     try {
         const a = document.createElement("a");
         a.href = url;
@@ -104,104 +61,8 @@ const downloadCurrentArchive = async (source: ZipSource, title?: string) => {
         URL.revokeObjectURL(url);
     }
 };
-function listZipEntriesFromEntries(
-    entries: Entry[],
-    dir: string
-): ZipTargetFile[] {
-    const prefixRaw = normalizeZipPath(dir).replace(/\/+$/, "");
-    const prefix = prefixRaw ? `${prefixRaw}/` : "";
-
-    const results: ZipTargetFile[] = [];
-    const seenDirs = new Set<string>();
-
-    for (const entry of entries) {
-        const rawName = entry.filename.replace(/^\/+/, "");
-
-        if (!rawName.startsWith(prefix)) continue;
-
-        const rest = rawName.slice(prefix.length);
-        if (!rest) continue;
-
-        const slashIndex = rest.indexOf("/");
-
-        if (slashIndex >= 0) {
-            const dirName = rest.slice(0, slashIndex);
-            if (!dirName || seenDirs.has(dirName)) continue;
-
-            seenDirs.add(dirName);
-
-            results.push({
-                id: "zip",
-                name: dirName,
-                path: zipApiPath(prefix, dirName),
-                isFile: false,
-                isDir: true,
-                size: 0,
-                createdAt: 0,
-                modifiedAt: 0,
-            });
-
-            continue;
-        }
-
-        if (entry.directory) continue;
-
-        results.push({
-            id: "zip",
-            name: rest,
-            path: zipApiPath(prefix, rest),
-            isFile: true,
-            isDir: false,
-            size: entry.uncompressedSize ?? entry.compressedSize ?? 0,
-            createdAt: 0,
-            modifiedAt: entry.lastModDate?.getTime?.() ?? 0,
-            entry,
-        });
-    }
-
-    return results;
-}
-
-function isZipFileEntry(entry: Entry): entry is FileEntry {
-    return !entry.directory;
-}
-
-async function getZipEntryBlob(
-    file: ZipTargetFile,
-    password?: string,
-    onProgress?: (loaded: number, total: number) => void
-): Promise<Blob> {
-    const entry = file.entry;
-
-    if (!entry) throw new Error("zip entry is missing");
-    if (!isZipFileEntry(entry)) throw new Error("zip entry is directory");
-
-    try {
-        return await entry.getData(new BlobWriter(mimeFromPath(file.path)), {
-            password: password || undefined,
-            onprogress: (loaded: number, total: number) => {
-                onProgress?.(loaded, total);
-            },
-        } as any);
-    } catch (error: any) {
-        // エラーの型（クラス）で直接判定します
-        // ★ エラーの名前（name）が特定の文字列かどうかで判定する
-        console.log("> error ", error, error?.name);
-        if (error?.name === ERR_ENCRYPTED || error?.name === ERR_INVALID_PASSWORD) {
-            console.error("暗号化エラーをキャッチしました");
-            alert("wrong password");
-        } else if (`${error}`.includes(`File contains encrypted entry`)) {
-            alert("wrong password");
-        } else if (error) {
-            alert(`${error}`)
-        }
-        throw error;
-    }
-}
-
 export function useZipFileListDialog() {
     const { showDialog } = useDialog();
-
     const showZipFileListDialog = React.useCallback(
         async (opts: ZipFileListDialogOptions) => {
             console.log("> showZipFileListDialog", opts);
@@ -211,10 +72,8 @@ export function useZipFileListDialog() {
         },
         [showDialog]
     );
-
     return { showZipFileListDialog };
 }
-
 function ZipFileListDialog({
     title,
     source,
@@ -222,40 +81,23 @@ function ZipFileListDialog({
     onClose,
 }: ZipFileListDialogOptions & { onClose: () => void }) {
     const [path, setPath] = useState(initialPath);
-    const [entries, setEntries] = useState<Entry[]>([]);
     const [files, setFiles] = useState<ZipTargetFile[]>([]);
     const [sort, setSort] = useState<SortMode>("comic");
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("");
     const [password, setPassword] = useState("");
-
-    const readerRef = useRef<ZipReader<BlobReader | HttpReader> | null>(null);
-
+    const extractorRef = useRef<ZipExtractor | null>(null);
     const { showPreviewDialog } = usePreviewDialog();
     const { showZipFileListDialog } = useZipFileListDialog();
-
     React.useEffect(() => {
         let cancelled = false;
-
         const init = async () => {
             setLoading(true);
-
             try {
-                if (readerRef.current) {
-                    await readerRef.current.close().catch(() => { });
-                    readerRef.current = null;
-                }
-
-                const reader = createZipReader(source);
-                readerRef.current = reader;
-
-                const nextEntries = await reader.getEntries();
-
+                const extractor = ZipExtractor.createFromZipSource(source);
+                extractorRef.current = extractor;
+                const nextFiles = await extractor.list(initialPath);
                 if (cancelled) return;
-
-                setEntries(nextEntries);
-
-                const nextFiles = listZipEntriesFromEntries(nextEntries, initialPath);
                 setFiles(nextFiles);
                 setPath(initialPath);
             } finally {
@@ -264,55 +106,55 @@ function ZipFileListDialog({
                 }
             }
         };
-
         init().catch(console.error);
-
         return () => {
             cancelled = true;
-
-            const reader = readerRef.current;
-            readerRef.current = null;
-
-            if (reader) {
-                reader.close().catch(() => { });
-            }
+            extractorRef.current = null;
         };
     }, [source, initialPath]);
-
+    const readArchiveFile = React.useCallback(
+        async (
+            file: ZipTargetFile,
+            onProgress?: (loaded: number, total: number) => void
+        ) => {
+            const extractor = extractorRef.current;
+            if (!extractor) {
+                throw new Error("archive extractor is not initialized");
+            }
+            extractor.setPassword(password || undefined);
+            return await extractor.read(file.path, onProgress);
+        },
+        [password]
+    );
     const load = React.useCallback(
         async (nextPath: string) => {
+            const extractor = extractorRef.current;
+            if (!extractor) return;
             setLoading(true);
-
             try {
                 const resolvedPath = nextPath === ".." ? parentPathOf(path) : nextPath;
-                const nextFiles = listZipEntriesFromEntries(entries, resolvedPath);
-
+                const nextFiles = await extractor.list(resolvedPath);
                 setFiles(nextFiles);
                 setPath(resolvedPath);
             } finally {
                 setLoading(false);
             }
         },
-        [entries, path]
+        [path]
     );
-
     const sortedFiles = useMemo<ZipTargetFile[]>(() => {
         const next = [...files];
-
         next.sort((a, b) => {
             if (sort === "modifiedAt") {
                 if (a.isDir && !b.isDir) return -1;
                 if (!a.isDir && b.isDir) return 1;
                 return (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0);
             }
-
             if (sort === "comic") return compareComic(a, b);
-
             if (a.isDir && !b.isDir) return -1;
             if (!a.isDir && b.isDir) return 1;
             return compareByName(a, b);
         });
-
         if (path !== "/" && path !== "") {
             return [
                 {
@@ -328,15 +170,16 @@ function ZipFileListDialog({
                 ...next,
             ];
         }
-
         return next;
     }, [files, sort, path]);
-
-    const downloadZipEntry = async (file: ZipTargetFile, onProgress?: (loaded: number, total: number) => void) => {
-        let url;
+    const downloadZipEntry = async (
+        file: ZipTargetFile,
+        onProgress?: (loaded: number, total: number) => void
+    ) => {
+        let url: string | undefined;
         try {
             setLoading(true);
-            const entryBlob = await getZipEntryBlob(file, password, onProgress);
+            const entryBlob = await readArchiveFile(file, onProgress);
             url = URL.createObjectURL(entryBlob);
             const a = document.createElement("a");
             a.href = url;
@@ -352,7 +195,6 @@ function ZipFileListDialog({
             setLoading(false);
         }
     };
-
     return (
         <div className="flex h-[calc(100vh-2rem)] w-[min(96vw,900px)] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-slate-100 shadow-xl">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
@@ -362,9 +204,7 @@ function ZipFileListDialog({
                     </h2>
                     <div className="break-all text-xs text-slate-400">{path}</div>
                 </div>
-
                 <div className="flex shrink-0 gap-2">
-
                     <input
                         type="password"
                         value={password}
@@ -377,7 +217,6 @@ function ZipFileListDialog({
                         disabled={loading}
                         onClick={async () => {
                             if (loading) return;
-
                             try {
                                 setLoading(true);
                                 await downloadCurrentArchive(source, title);
@@ -389,7 +228,6 @@ function ZipFileListDialog({
                     >
                         Download
                     </button>
-
                     <button
                         type="button"
                         onClick={onClose}
@@ -399,7 +237,6 @@ function ZipFileListDialog({
                     </button>
                 </div>
             </div>
-
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
                 <select
                     value={sort}
@@ -410,7 +247,6 @@ function ZipFileListDialog({
                     <option value="name">Name</option>
                     <option value="modifiedAt">Modified</option>
                 </select>
-
                 <button
                     type="button"
                     className="inline-flex w-20 items-center justify-center rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
@@ -419,12 +255,11 @@ function ZipFileListDialog({
                     {loading ? <Loader className="h-4 w-4 animate-spin" /> : "Reload"}
                 </button>
             </div>
-
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
                 <div className="space-y-2">
                     {sortedFiles.map((file, index) => {
-                        const filename = file.path === ".." ? ".." : file.path.replace(/.*\//, "");
-
+                        const filename =
+                            file.path === ".." ? ".." : file.path.replace(/.*\//, "");
                         return (
                             <div
                                 key={`${file.id}-${file.path}-${index}`}
@@ -435,10 +270,8 @@ function ZipFileListDialog({
                                         type="button"
                                         className="w-full text-left"
                                         onClick={() => {
-                                            if (loading) {
-                                                return;
-                                            }
-                                            load(file.path)
+                                            if (loading) return;
+                                            load(file.path);
                                         }}
                                     >
                                         <div className="flex items-start gap-2 font-medium text-slate-100">
@@ -453,43 +286,49 @@ function ZipFileListDialog({
                                         type="button"
                                         className="w-full text-left"
                                         onClick={async () => {
-                                            if (loading) {
-                                                return;
-                                            }
+                                            if (loading) return;
                                             try {
                                                 setLoading(true);
-                                                if (isImage(file.path) || isVideo(file.path) || isText(file.path) || isAudio(file.path) || isPdf(file.path) || isEpub(file.path)) {
+                                                if (
+                                                    isImage(file.path) ||
+                                                    isVideo(file.path) ||
+                                                    isText(file.path) ||
+                                                    isAudio(file.path) ||
+                                                    isPdf(file.path) ||
+                                                    isEpub(file.path)
+                                                ) {
                                                     const previewFiles = [...sortedFiles];
-                                                    //.filter(
-                                                    //    (f) => f.isFile && isImage(f.path)
-                                                    //);
                                                     const previewIndex = previewFiles.findIndex(
                                                         (f) => f.path === file.path
                                                     );
-
                                                     await showPreviewDialog({
                                                         files: previewFiles,
                                                         initialIndex: previewIndex,
                                                         apiServer: "",
-                                                        getObjectUrl: async (target, onProgress?: (loaded: number, total: number) => void) => {
-                                                            const zipFile = target as ZipTargetFile;
-                                                            const entryBlob = await getZipEntryBlob(zipFile, password, onProgress);
+                                                        getObjectUrl: async (target, onProgress) => {
+                                                            const entryBlob = await readArchiveFile(
+                                                                target as ZipTargetFile,
+                                                                onProgress
+                                                            );
                                                             return URL.createObjectURL(entryBlob);
                                                         },
-                                                        download: async (target, onProgress?: (loaded: number, total: number) => void) => {
-                                                            await downloadZipEntry(target as ZipTargetFile, onProgress);
+                                                        download: async (target, onProgress) => {
+                                                            await downloadZipEntry(
+                                                                target as ZipTargetFile,
+                                                                onProgress
+                                                            );
                                                         },
                                                     });
-
                                                     return;
                                                 }
-
                                                 if (isZipLike(file.path)) {
-                                                    setLoadingMessage(``);
-                                                    const innerBlob = await getZipEntryBlob(file, password, (loaded, total) => {
-                                                        setLoadingMessage(`${loaded}/${total}`)
-                                                    });
-
+                                                    setLoadingMessage("");
+                                                    const innerBlob = await readArchiveFile(
+                                                        file,
+                                                        (loaded, total) => {
+                                                            setLoadingMessage(`${loaded}/${total}`);
+                                                        }
+                                                    );
                                                     await showZipFileListDialog({
                                                         title: filename,
                                                         source: {
@@ -498,10 +337,8 @@ function ZipFileListDialog({
                                                         },
                                                         initialPath: "/",
                                                     });
-
                                                     return;
                                                 }
-
                                                 await downloadZipEntry(file);
                                             } finally {
                                                 setLoading(false);
@@ -514,7 +351,6 @@ function ZipFileListDialog({
                                             ) : (
                                                 <File className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
                                             )}
-
                                             <span className="min-w-0 break-all text-cyan-50">
                                                 {filename}
                                             </span>
