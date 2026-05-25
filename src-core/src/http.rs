@@ -209,6 +209,19 @@ async fn web_asset(Path(path): Path<String>) -> impl IntoResponse {
     embedded_file_response(&format!("assets/{path}"))
 }
 
+async fn web_asset_unrar_wasm() -> Response {
+    match WebAssets::get("unrar.wasm") {
+        Some(content) => Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/wasm")
+            .body(Body::from(content.data.into_owned()))
+            .unwrap(),
+        None => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::from("not found"))
+            .unwrap(),
+    }
+}
 fn embedded_web_html_response(path: &str, api_key: &str) -> Response {
     let Some(file) = WebAssets::get(path) else {
         return StatusCode::NOT_FOUND.into_response();
@@ -301,6 +314,7 @@ impl SharedHttpServerContext {
             //.route("/download/{id}/{*sub_path}", get(http_file::download_file))
             .route("/", get(web_index))
             .route("/assets/{*path}", get(web_asset))
+            .route("/unrar.wasm", get(web_asset_unrar_wasm))
             //.route("/", get(web_index))
             //.nest_service(
             //    "/assets",
