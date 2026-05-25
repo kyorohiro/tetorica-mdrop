@@ -3,9 +3,8 @@ import "./App.css";
 import { Loader } from "lucide-react";
 import { getDownloadList, getMeta, Target } from "./api";
 import { useFileListDialog } from "./useFileListDialog";
-import { isAudio, isEpub, isImage, isPdf, isText, isVideo } from "./useZipFileListDialog";
 import { usePreviewDialog } from "./usePreviewDialog";
-import { sleep } from "./utils";
+import { sleep, isAudio, isEpub, isImage, isPdf, isText, isVideo  } from "../utils";
 
 function WebApp() {
     const [errorMsg,] = useState<string>("");

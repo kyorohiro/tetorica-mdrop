@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
 import { ReactReader } from "react-reader";
-import { isAudio, isImage, isPdf, isText, isVideo, isEpub } from "./useZipFileListDialog";
+import { isAudio, isImage, isPdf, isText, isVideo, isEpub } from "../utils";
 
 type PreviewDialogOptions = {
     files: TargetFile[];
