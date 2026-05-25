@@ -1,20 +1,23 @@
-
 //
 // RAR
 //
 import {
   createExtractorFromData,
-  //type UnrarExtractor,
-  type Extractor
+  type Extractor,
 } from "node-unrar-js";
-import { ArchiveExtractor, ArchiveExtractorEntry, ZipSource } from "./extractor";
+
+import {
+  type ArchiveExtractor,
+  type ArchiveExtractorEntry,
+  type ZipSource,
+} from "./extractor";
+
 import { mimeFromPath } from "../utils";
 
-type UnrarExtractor = Extractor<Uint8Array>
-//import { mimeFromPath } from "../utils";
+type UnrarExtractor = Extractor<Uint8Array>;
 
 export class RarExtractor implements ArchiveExtractor {
-  private extractorPromise?: Promise<UnrarExtractor>;
+  private dataPromise?: Promise<Uint8Array>;
   private password: string | undefined;
 
   constructor(private readonly source: ZipSource) {}
@@ -25,33 +28,32 @@ export class RarExtractor implements ArchiveExtractor {
 
   setPassword(password: string | undefined): void {
     this.password = password;
-    this.extractorPromise = undefined;
   }
 
-  private async getData(): Promise<Uint8Array> {
-    const blob =
-      this.source.type === "blob"
-        ? this.source.blob
-        : await fetch(this.source.url).then((r) => r.blob());
+  private getData(): Promise<Uint8Array> {
+    this.dataPromise ??= (async () => {
+      const blob =
+        this.source.type === "blob"
+          ? this.source.blob
+          : await fetch(this.source.url).then((r) => r.blob());
 
-    return new Uint8Array(await blob.arrayBuffer());
-  }
-
-  private async getExtractor(): Promise<UnrarExtractor> {
-    this.extractorPromise ??= (async () => {
-      const data = await this.getData();
-
-      return await createExtractorFromData({
-        data,
-        password: this.password,
-      } as any);
+      return new Uint8Array(await blob.arrayBuffer());
     })();
 
-    return this.extractorPromise!;
+    return this.dataPromise;
+  }
+
+  private async createExtractor(): Promise<UnrarExtractor> {
+    const data = await this.getData();
+
+    return await createExtractorFromData({
+      data,
+      password: this.password,
+    } as any);
   }
 
   async list(path: string): Promise<ArchiveExtractorEntry[]> {
-    const extractor = await this.getExtractor();
+    const extractor = await this.createExtractor();
     const list = extractor.getFileList();
 
     const headers = [...list.fileHeaders] as any[];
@@ -63,7 +65,7 @@ export class RarExtractor implements ArchiveExtractor {
     path: string,
     onProgress?: (loaded: number, total: number) => void
   ): Promise<Blob> {
-    const extractor = await this.getExtractor();
+    const extractor = await this.createExtractor();
     const targetPath = RarExtractor.normalizeRarPath(path);
 
     const extracted = extractor.extract({
@@ -71,15 +73,24 @@ export class RarExtractor implements ArchiveExtractor {
     } as any);
 
     const files = [...extracted.files] as any[];
+
     const file = files.find(
-      (f) => RarExtractor.normalizeRarPath(f.fileHeader?.name ?? "") === targetPath
+      (f) =>
+        RarExtractor.normalizeRarPath(f.fileHeader?.name ?? "") === targetPath
     );
 
     if (!file) {
+      console.log("targetPath", targetPath);
+      console.log(
+        "extracted files",
+        files.map((f) => f.fileHeader?.name)
+      );
+
       throw new Error(`rar entry not found: ${path}`);
     }
 
     const data = file.extraction;
+
     if (!data) {
       throw new Error(`rar entry extraction failed: ${path}`);
     }
@@ -125,6 +136,7 @@ export class RarExtractor implements ArchiveExtractor {
 
       if (slashIndex >= 0) {
         const dirName = rest.slice(0, slashIndex);
+
         if (!dirName || seenDirs.has(dirName)) continue;
 
         seenDirs.add(dirName);
