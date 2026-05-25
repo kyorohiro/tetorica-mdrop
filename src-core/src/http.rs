@@ -214,6 +214,7 @@ fn embedded_web_html_response(path: &str, api_key: &str) -> Response {
         return StatusCode::NOT_FOUND.into_response();
     };
     let html = String::from_utf8_lossy(&file.data).replace("MDROP_DEV_ONLY_API_KEY", api_key);
+    let html = html.replace("http://localhost:7878", "");
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")

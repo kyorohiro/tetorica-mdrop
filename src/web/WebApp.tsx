@@ -5,11 +5,7 @@ import { getDownloadList, getMeta, Target } from "./api";
 import { useFileListDialog } from "./useFileListDialog";
 import { isAudio, isEpub, isImage, isPdf, isText, isVideo } from "./useZipFileListDialog";
 import { usePreviewDialog } from "./usePreviewDialog";
-
-///
-const sleep = (ms: number): Promise<void> => {
-    return new Promise(resolve => setTimeout(resolve, ms));
-};
+import { sleep } from "./utils";
 
 function WebApp() {
     const [errorMsg,] = useState<string>("");
@@ -19,14 +15,10 @@ function WebApp() {
     const mainRef = useRef<HTMLElement>(null);
     const { showFileListDialog } = useFileListDialog();
     const { showPreviewDialog } = usePreviewDialog();
-    //const [current
-
     //
     const onReload = useCallback(async () => {
-        console.log("> onReload");
         setLoading(true);
         try {
-            console.log("u1-d1");
             const metaResp = await getMeta();
             setApiServer(metaResp.apiServer);
             const resp = await getDownloadList();
@@ -41,7 +33,7 @@ function WebApp() {
 
     const onSelectTarget = async (target: Target) => {
         await showFileListDialog({
-            //title: target.path,
+            title: target.path.replace(/^.*[\/]/,""),
             apiServer,
             targetId: target.id,
             initialPath: "/",
@@ -50,7 +42,6 @@ function WebApp() {
     }
 
     useEffect(() => {
-        //onPopState();
         onReload();
     }, [onReload]);
 

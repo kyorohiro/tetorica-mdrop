@@ -18,18 +18,14 @@ type TargetFile = {
 }
 
 const getMeta = async (): Promise<{ apiServer: string }> => {
-    const metaResp = await fetch("./meta.json");
-    if (!metaResp.ok) {
+    const apiServer = window.__MDROP_CONFIG__?.apiServer;
+    if (!apiServer || apiServer == "") {
         const url = new URL(window.location.href);
         return {
             apiServer: url.origin,
         }
     }
-    const data = await metaResp.text();
-    //console.log(data);
-    const d = JSON.parse(data);
-    //console.log(d.apiServer)
-    return d as { apiServer: string };
+    return {apiServer:apiServer} as { apiServer: string };
 };
 
 const getDownloadList = async (): Promise<Target[]> => {
