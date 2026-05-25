@@ -25,16 +25,16 @@ jobs:
             args: ""
             cli_archive: tetorica-mdrop-linux-arm.tar.gz
 
-          - platform: macos-apple-silicon
-            runs-on: macos-latest
-            args: "--target aarch64-apple-darwin"
-            cli_archive: tetorica-mdrop-macos-aarch64.tar.gz
-
-          - platform: macos-intel
-            runs-on: macos-13
-            args: "--target x86_64-apple-darwin"
-            cli_archive: tetorica-mdrop-macos-x86_64.tar.gz
-
+          #- platform: macos-apple-silicon
+          #  runs-on: macos-latest
+          #  args: "--target aarch64-apple-darwin"
+          #  cli_archive: tetorica-mdrop-macos-aarch64.tar.gz
+          #
+          #- platform: macos-intel
+          #  runs-on: macos-13
+          #  args: "--target x86_64-apple-darwin"
+          #  cli_archive: tetorica-mdrop-macos-x86_64.tar.gz
+          #
           - platform: windows
             runs-on: windows-latest
             args: ""
