@@ -217,6 +217,7 @@ Using the IP address (e.g. http://192.168.x.x:7878/) is more reliable than .loca
 ```
 cd src-cli
 cargo run -p tetorica-mdrop-cli -- ./some-file.mp4
+cargo run --features dev_web -p tetorica-mdrop-cli -- ./some-file.mp4
 ```
 
 # Memo

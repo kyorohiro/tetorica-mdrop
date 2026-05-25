@@ -3,13 +3,11 @@ use axum::extract::Path;
 use axum::http::{header, Method, StatusCode};
 use axum::middleware::{self};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get_service;
 use axum::{
     extract::{ConnectInfo, Query, State as AxumState},
     response::Html,
 };
 use axum::{routing::get, Router};
-use tower_http::services::ServeDir;
 
 use axum_server::tls_rustls::RustlsConfig;
 use local_ip_address::local_ip;
@@ -26,12 +24,20 @@ use std::{
 use tokio::{net::TcpListener, sync::oneshot};
 use tower_http::cors::{Any, CorsLayer};
 
+use crate::http_api::{api_key_guard_middleware, create_api_key};
 use crate::http_file;
 use crate::http_utils::{access_guard_middleware, list_ips};
 use crate::{hello, http_api};
 //
 //
 use rust_embed::RustEmbed;
+
+#[cfg(feature = "dev_web")]
+const DEV_WEB: bool = true;
+
+#[cfg(not(feature = "dev_web"))]
+const DEV_WEB: bool = false;
+
 #[derive(RustEmbed)]
 #[folder = "../dist"]
 struct WebAssets;
@@ -48,6 +54,7 @@ pub struct ReceivedMessage {
     pub text: String,
 }
 
+//
 pub type MessageCallback = Arc<dyn Fn(ReceivedMessage) + Send + Sync>;
 
 async fn receive_message_get(
@@ -152,6 +159,7 @@ pub struct HttpServerContext {
     pub local_only: bool,
     pub files: HashMap<String, PathBuf>,
     pub message_callback: Option<MessageCallback>,
+    pub api_key: String,
 }
 
 impl HttpServerContext {
@@ -162,6 +170,7 @@ impl HttpServerContext {
             local_only: true,
             files: HashMap::new(),
             message_callback: None,
+            api_key: create_api_key(),
         }
     }
 
@@ -187,12 +196,30 @@ pub struct SharedHttpServerContext {
     pub inner: Arc<Mutex<HttpServerContext>>,
 }
 
-async fn web_index() -> impl IntoResponse {
-    embedded_file_response("web.html")
+async fn web_index(AxumState(state): AxumState<SharedHttpServerContext>) -> impl IntoResponse {
+    let api_key = {
+        let ctx = state.inner.lock().unwrap();
+        ctx.api_key.clone()
+    };
+
+    embedded_web_html_response("web.html", &api_key)
 }
 
 async fn web_asset(Path(path): Path<String>) -> impl IntoResponse {
     embedded_file_response(&format!("assets/{path}"))
+}
+
+fn embedded_web_html_response(path: &str, api_key: &str) -> Response {
+    let Some(file) = WebAssets::get(path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let html = String::from_utf8_lossy(&file.data).replace("MDROP_DEV_ONLY_API_KEY", api_key);
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-store")
+        .body(Body::from(html))
+        .unwrap()
 }
 
 fn embedded_file_response(path: &str) -> Response {
@@ -244,11 +271,19 @@ impl SharedHttpServerContext {
                 header::CONTENT_RANGE,
                 header::CONTENT_TYPE,
             ]);
+        let api_routes = Router::new()
+            .route("/downloadList", get(http_api::api_get_download_lists))
+            .route("/files", get(http_api::api_get_files))
+            .route_layer(middleware::from_fn_with_state(
+                self.clone(),
+                api_key_guard_middleware,
+            ));
         Router::new()
             .route("/hello", get(hello::hello()))
+            .nest("/api", api_routes)
             //.route("/", get(http_file::index_get))
-            .route("/api/downloadList", get(http_api::api_get_download_lists))
-            .route("/api/files", get(http_api::api_get_files))
+            //.route("/api/downloadList", get(http_api::api_get_download_lists))
+            //.route("/api/files", get(http_api::api_get_files))
             .route(
                 "/message",
                 get(receive_message_get).post(receive_message_post),

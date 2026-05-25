@@ -16,6 +16,7 @@ type TargetFile = {
     modifiedAt: number,
     isRoot?: boolean,
 }
+
 const getMeta = async (): Promise<{ apiServer: string }> => {
     const metaResp = await fetch("./meta.json");
     if (!metaResp.ok) {
@@ -34,8 +35,23 @@ const getMeta = async (): Promise<{ apiServer: string }> => {
 const getDownloadList = async (): Promise<Target[]> => {
 
     const meta = await getMeta();
-    const resp = await fetch(`${meta.apiServer}/api/downloadList`);
+    const resp = await fetch(`${meta.apiServer}/api/downloadList`, {
+        headers: {
+            "X-mDrop-API-Key": window.__MDROP_CONFIG__?.apiKey ?? "",
+        },
+    });
     if (!resp.ok) {
+        if (resp.status === 401) {
+            if (!sessionStorage.getItem("mdrop_api_key_reload")) {
+                sessionStorage.setItem("mdrop_api_key_reload", "1");
+                alert("Session expired. Reloading now.");
+                location.reload();
+            }
+            alert("Wrong API key. Please restart mDrop.");
+            throw new Error("Wrong API key");
+        }
+
+        sessionStorage.removeItem("mdrop_api_key_reload");
         throw "";
     }
     const data = await resp.text();
@@ -48,8 +64,11 @@ const getFiles = async (id: string, path: string): Promise<TargetFile[]> => {
 
     const meta = await getMeta();
     const resp = await fetch(
-        `${meta.apiServer}/api/files?i=${encodeURIComponent(id)}&p=${encodeURIComponent(path)}`
-    );
+        `${meta.apiServer}/api/files?i=${encodeURIComponent(id)}&p=${encodeURIComponent(path)}`, {
+        headers: {
+            "X-mDrop-API-Key": window.__MDROP_CONFIG__?.apiKey ?? "",
+        },
+    });
     if (!resp.ok) {
         throw "";
     }
@@ -67,5 +86,5 @@ export {
 
 export type {
     Target,
-   TargetFile
+    TargetFile
 }

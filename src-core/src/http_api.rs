@@ -12,7 +12,8 @@ fn system_time_to_millis(t: SystemTime) -> Option<u128> {
 }
 
 use axum::extract::Query;
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, Request};
+use axum::middleware::Next;
 use axum::response::{Html, IntoResponse};
 use axum::Error;
 use axum::{body::Body, http::StatusCode};
@@ -125,4 +126,38 @@ pub async fn api_get_files(
     }
 
     serde_json::to_string(&files).unwrap()
+}
+
+
+const API_KEY_HEADER: &str = "X-mDrop-API-Key";
+
+pub async fn api_key_guard_middleware(
+    AxumState(state): AxumState<SharedHttpServerContext>,
+    headers: HeaderMap,
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let expected_api_key = {
+        let ctx = state.inner.lock().unwrap();
+        ctx.api_key.clone()
+    };
+
+    let actual_api_key = headers
+        .get(API_KEY_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    if actual_api_key != expected_api_key {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    Ok(next.run(req).await)
+}
+
+pub fn create_api_key() -> String {
+    if cfg!(feature = "dev_web") {
+        "MDROP_DEV_ONLY_API_KEY".to_string()
+    } else {
+        uuid::Uuid::new_v4().to_string()
+    }
 }

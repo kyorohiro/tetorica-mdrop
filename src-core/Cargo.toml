@@ -25,4 +25,9 @@ percent-encoding = "2.3.2"
 rust-embed = "8.11.0"
 mime_guess = "2.0.5"
 zip = "8.6.0"
+uuid = { version = "1.23.1", features = ["v4"] }
 
+
+[features]
+default = []
+dev_web = []
