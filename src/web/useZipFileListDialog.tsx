@@ -42,19 +42,19 @@ const filenameFromTitle = (title?: string) => {
 };
 
 export const isRarLikePath = (path: string) =>
-  /\.(rar|cbr)$/i.test(path);
+    /\.(rar|cbr)$/i.test(path);
 
 export const isZipLikePath = (path: string) =>
-  /\.(zip|cbz)$/i.test(path);
+    /\.(zip|cbz)$/i.test(path);
 
 export const createArchiveExtractor = (source: ZipSource, title?: string): ArchiveExtractor => {
-  const name = title ?? "";
+    const name = title ?? "";
 
-  if (isRarLikePath(name)) {
-    return RarExtractor.createFromZipSource(source);
-  }
+    if (isRarLikePath(name)) {
+        return RarExtractor.createFromZipSource(source);
+    }
 
-  return ZipExtractor.createFromZipSource(source);
+    return ZipExtractor.createFromZipSource(source);
 };
 
 const downloadCurrentArchive = async (source: ZipSource, title?: string) => {
@@ -109,7 +109,7 @@ function ZipFileListDialog({
     const extractorRef = useRef<ArchiveExtractor | null>(null);
     const { showPreviewDialog } = usePreviewDialog();
     const { showZipFileListDialog } = useZipFileListDialog();
-    
+
     React.useEffect(() => {
         let cancelled = false;
         const init = async () => {
@@ -275,6 +275,13 @@ function ZipFileListDialog({
                 >
                     {loading ? <Loader className="h-4 w-4 animate-spin" /> : "Reload"}
                 </button>
+            </div>
+            {/* ここに warning */}
+
+            <div className="shrink-0 border-b border-yellow-900/40 bg-yellow-950/20 px-4 py-2 text-xs text-yellow-200">
+                <span className="font-semibold">Warning: </span>
+                Nested ZIP and RAR archives are streamed directly and may generate high network traffic.
+
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
                 <div className="space-y-2">
