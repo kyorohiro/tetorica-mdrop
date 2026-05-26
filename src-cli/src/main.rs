@@ -51,8 +51,31 @@ fn load_config(path: Option<&PathBuf>) -> Result<Config, String> {
         return Ok(Config::default());
     };
 
-    let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    toml::from_str(&text).map_err(|e| e.to_string())
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!(
+                "Config file not found: {}. Continuing with command-line options and defaults.",
+                path.display()
+            );
+            return Ok(Config::default());
+        }
+        Err(e) => {
+            return Err(format!(
+                "Failed to read config file {}: {}",
+                path.display(),
+                e
+            ));
+        }
+    };
+
+    toml::from_str(&text).map_err(|e| {
+        format!(
+            "Failed to parse config file {}: {}",
+            path.display(),
+            e
+        )
+    })
 }
 
 #[tokio::main]
