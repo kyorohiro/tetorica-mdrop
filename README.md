@@ -91,8 +91,8 @@ cp file.zip "$(brew --prefix)/var/tetorica-mdrop/share/"
 brew services start tetorica-mdrop
 ```
 
-- More Detail
-[](https://github.com/kyorohiro/homebrew-tetorica/tree/main)
+- More Detail  
+https://github.com/kyorohiro/homebrew-tetorica/tree/main
 
 
 # How It Works
