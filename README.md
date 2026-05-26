@@ -40,7 +40,7 @@ https://kyorohiro.github.io/tetorica-mdrop/
 
 ---
 
-# Quick Start
+# Quick Start　（Desktop)
 
 ```
 1. Start the server
@@ -69,6 +69,15 @@ Files will instantly appear in the list and become downloadable.
 
 ```
 ---
+
+# Quick Start (cli linux or mac)
+
+```
+brew tap kyorohiro/tetorica
+brew install tetorica-mdrop
+tetorica-mdrop <path-to-share>
+```
+
 
 # How It Works
 
