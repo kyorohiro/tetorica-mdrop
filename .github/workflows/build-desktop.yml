@@ -69,43 +69,43 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      #- name: Build CLI
-      #  shell: bash
-      #  run: |
-      #    if [[ "${{ matrix.platform }}" == "macos-apple-silicon" ]]; then
-      #      cargo build --release -p tetorica-mdrop-cli --target aarch64-apple-darwin
-      #    elif [[ "${{ matrix.platform }}" == "macos-intel" ]]; then
-      #      cargo build --release -p tetorica-mdrop-cli --target x86_64-apple-darwin
-      #    else
-      #      cargo build --release -p tetorica-mdrop-cli
-      #    fi
+      - name: Build CLI
+        shell: bash
+        run: |
+          if [[ "${{ matrix.platform }}" == "macos-apple-silicon" ]]; then
+            cargo build --release -p tetorica-mdrop-cli --target aarch64-apple-darwin
+          elif [[ "${{ matrix.platform }}" == "macos-intel" ]]; then
+            cargo build --release -p tetorica-mdrop-cli --target x86_64-apple-darwin
+          else
+            cargo build --release -p tetorica-mdrop-cli
+          fi
 
-      #- name: Package CLI
-      #  shell: bash
-      #  run: |
-      #    mkdir -p dist-cli
+      - name: Package CLI
+        shell: bash
+        run: |
+          mkdir -p dist-cli
+      
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp target/release/tetorica-mdrop.exe dist-cli/
+            cd dist-cli
+            7z a "../${{ matrix.cli_archive }}" *
+          elif [[ "${{ matrix.platform }}" == "macos-apple-silicon" ]]; then
+            cp target/aarch64-apple-darwin/release/tetorica-mdrop dist-cli/
+            tar -czf "${{ matrix.cli_archive }}" -C dist-cli .
+          elif [[ "${{ matrix.platform }}" == "macos-intel" ]]; then
+            cp target/x86_64-apple-darwin/release/tetorica-mdrop dist-cli/
+            tar -czf "${{ matrix.cli_archive }}" -C dist-cli .
+          else
+            cp target/release/tetorica-mdrop dist-cli/
+            tar -czf "${{ matrix.cli_archive }}" -C dist-cli .
+          fi
       #
-      #    if [[ "${{ runner.os }}" == "Windows" ]]; then
-      #      cp target/release/tetorica-mdrop.exe dist-cli/
-      #      cd dist-cli
-      #      7z a "../${{ matrix.cli_archive }}" *
-      #    elif [[ "${{ matrix.platform }}" == "macos-apple-silicon" ]]; then
-      #      cp target/aarch64-apple-darwin/release/tetorica-mdrop dist-cli/
-      #      tar -czf "${{ matrix.cli_archive }}" -C dist-cli .
-      #    elif [[ "${{ matrix.platform }}" == "macos-intel" ]]; then
-      #      cp target/x86_64-apple-darwin/release/tetorica-mdrop dist-cli/
-      #      tar -czf "${{ matrix.cli_archive }}" -C dist-cli .
-      #    else
-      #      cp target/release/tetorica-mdrop dist-cli/
-      #      tar -czf "${{ matrix.cli_archive }}" -C dist-cli .
-      #    fi
-      #
-      #- name: Upload CLI artifact to release
-      #  uses: softprops/action-gh-release@v2
-      #  if: startsWith(github.ref, 'refs/tags/')
-      #  with:
-      #    draft: true
-      #    files: ${{ matrix.cli_archive }}
+      - name: Upload CLI artifact to release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          draft: true
+          files: ${{ matrix.cli_archive }}
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
