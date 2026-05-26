@@ -100,6 +100,18 @@
             background: rgba(255, 255, 255, 0.05);
             color: var(--text);
         }
+        pre {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 14px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background: transparent;
+            padding: 0;
+        }
     </style>
 </head>
 
@@ -166,7 +178,42 @@
 
             <p><code>http://&lt;your-ip-address&gt;:7878/</code></p>
         </section>
+        <section>
+            <h2>Quick Start (CLI: Linux / macOS)</h2>
 
+            <h3>Install with Homebrew</h3>
+            <p>
+                Tetorica mDrop can also run as a lightweight CLI server.
+            </p>
+
+            <pre><code>brew tap kyorohiro/tetorica
+brew install tetorica-mdrop</code></pre>
+
+            <h3>Run manually</h3>
+
+            <pre><code>tetorica-mdrop /path/to/share</code></pre>
+
+            <p>
+                Replace <code>/path/to/share</code> with the folder you want to share.
+            </p>
+
+            <h3>Run as a service</h3>
+
+            <pre><code>cp file.zip "$(brew --prefix)/var/tetorica-mdrop/share/"
+brew services start tetorica-mdrop</code></pre>
+
+            <p>
+                The service shares files from:
+            </p>
+
+            <pre><code>$(brew --prefix)/var/tetorica-mdrop/share/</code></pre>
+
+            <p>
+                To stop the service:
+            </p>
+
+            <pre><code>brew services stop tetorica-mdrop</code></pre>
+        </section>
         <section>
             <h2>How It Works</h2>
             <p>
