@@ -11,6 +11,8 @@ path = "src/main.rs"
 tetorica-mdrop-core = { path = "../src-core" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "1.1.2"
 
 [features]
 default = []
