@@ -72,10 +72,23 @@ Files will instantly appear in the list and become downloadable.
 
 # Quick Start (cli linux or mac)
 
+
 ```
 brew tap kyorohiro/tetorica
 brew install tetorica-mdrop
-tetorica-mdrop <path-to-share>
+```
+
+## command 
+
+```
+tetorica-mdrop /path/to/share
+```
+
+## service 
+
+```
+cp file.zip "$(brew --prefix)/var/tetorica-mdrop/share/"
+brew services start tetorica-mdrop
 ```
 
 
