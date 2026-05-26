@@ -189,8 +189,36 @@ impl HttpServerContext {
 
         Ok(self.status.clone())
     }
+
+    pub fn get_apikey(&mut self) -> String  {
+        return self.api_key.clone();
+    }
 }
 
+/*
+
+  if (window.__TAURI_INTERNALS__) {
+
+    return await getTauriMdropConfig();
+
+  }
+
+  const apiServer = window.__MDROP_CONFIG__?.apiServer;
+
+  const apiKey = window.__MDROP_CONFIG__?.apiKey ?? "";
+
+  if (!apiServer) {
+
+    return {
+
+      apiServer: window.location.origin,
+
+      apiKey,
+
+    };
+
+  }
+ */
 #[derive(Clone)]
 pub struct SharedHttpServerContext {
     pub inner: Arc<Mutex<HttpServerContext>>,

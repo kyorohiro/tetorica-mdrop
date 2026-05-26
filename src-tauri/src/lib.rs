@@ -67,6 +67,7 @@ pub fn run() {
             share_file,
             unshare_file,
             unshare_all_files,
+            get_web_mdrop_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -248,4 +249,25 @@ async fn stop_bonjour(app_tauri_state: State<'_, AppState>) -> Result<BonjourSta
 #[tauri::command]
 async fn get_bonjour_status(app_tauri_state: State<'_, AppState>) -> Result<BonjourStatus, String> {
     return app_tauri_state.bonjour.status();
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MdropConfig {
+    apikey: Option<String>,
+}
+
+#[tauri::command]
+async fn get_web_mdrop_config(
+    app_tauri_state: State<'_, AppState>,
+) -> Result<MdropConfig, String> {
+    let mut ctx = app_tauri_state
+        .server2
+        .inner
+        .lock()
+        .map_err(|e| e.to_string())?;
+
+    Ok(MdropConfig {
+        apikey: Some(ctx.get_apikey()),
+    })
 }

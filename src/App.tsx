@@ -1,39 +1,32 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-//import { listen } from "@tauri-apps/api/event";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useDialog } from "./useDialog";
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeSVG } from "qrcode.react";
+
+import {
+  type SharedFileInfo,
+  type ServerStatus,
+  type BonjourStatus,
+  shareFile,
+  unshareFileById,
+  unshareAllFiles,
+  startServer,
+  stopServer,
+  getServerStatus,
+  startBonjour,
+  stopBonjour,
+  getBonjourStatus,
+  updateWebMdropConfig,
+} from "./tauriInvoker";
 
 type ReceivedMessage = {
   from: string;
   method: string;
   text: string;
-};
-
-type ServerStatus = {
-  running: boolean;
-  port?: number | null;
-  url?: string | null;
-  ips?: string[] | null;
-};
-
-type BonjourStatus = {
-  running: boolean;
-  service_name?: string | null;
-  service_type?: string | null;
-  port?: number | null;
-};
-
-type SharedFileInfo = {
-  id: string;
-  name: string;
-  path: string;
-  url: string;
 };
 
 const initialServerStatus: ServerStatus = {
@@ -49,9 +42,7 @@ const initialBonjourStatus: BonjourStatus = {
   port: null,
 };
 
-
 function App() {
-  //  const [greetMsg, setGreetMsg] = useState("");
   const [serverStatus, setServerStatus] =
     useState<ServerStatus>(initialServerStatus);
   const [password, setPassword] = useState("");
@@ -60,7 +51,7 @@ function App() {
     useState<BonjourStatus>(initialBonjourStatus);
   const [errorMsg, setErrorMsg] = useState("");
   const [sharedFiles, setSharedFiles] = useState<SharedFileInfo[]>([]);
-  //
+
   const [hostname, setHostname] = useState("mdrop.local");
   const [port, setPort] = useState("7878");
   const dialog = useDialog();
@@ -69,34 +60,39 @@ function App() {
 
   const [_, setReceivedMessages] = useState<ReceivedMessage[]>([]);
 
-  const bonjureRootUrl = () => { 
+  const bonjureRootUrl = () => {
     return (isHttps ? "https" : "http") + `://${hostname}:${port}/`;
-  }
-  const ipRootUrl = () => { 
+  };
+
+  const ipRootUrl = () => {
     return serverStatus.url ?? "";
-  }
+  };
 
   const rootUrl = () => {
     return bonjourStatus.running ? bonjureRootUrl() : ipRootUrl();
-  }
+  };
 
   async function sharePaths(paths: string[]) {
     try {
-      console.log(serverStatus);
+      //
+      // サーバは自動で起動
       if (!serverStatus.running) {
-        await dialog.showConfirmDialog({
-          title: `Server Not Running! ${serverStatus.running}`,
-          body: "Please start the server before dropping files or folders."
-        })
-        return;
+        let _serverStatus = await onStartServer();
+        if(_serverStatus.running) {
+          await onStartBonjure();
+        } else {
+          await dialog.showConfirmDialog({
+            title: `Server Not Running! ${serverStatus.running}`,
+            body: "Please start the server before dropping files or folders.",
+          });
+          return;
+        }
       }
+
       setErrorMsg("");
 
       for (const path of paths) {
-        const file = await invoke<SharedFileInfo>("share_file", {
-          req: { path },
-        });
-
+        const file = await shareFile(path);
         setSharedFiles((prev) => [file, ...prev]);
       }
     } catch (e) {
@@ -105,13 +101,11 @@ function App() {
     }
   }
 
-  async function unshareFile(id: string) {
+  async function unshareSharedFile(id: string) {
     try {
       setErrorMsg("");
 
-      await invoke("unshare_file", {
-        req: { id },
-      });
+      await unshareFileById(id);
 
       setSharedFiles((prev) => prev.filter((file) => file.id !== id));
     } catch (e) {
@@ -123,15 +117,14 @@ function App() {
       });
     }
   }
+
   async function selectFiles() {
     const selected = await open({
       multiple: true,
       directory: false,
     });
 
-    if (!selected) {
-      return;
-    }
+    if (!selected) return;
 
     const paths = Array.isArray(selected) ? selected : [selected];
     await sharePaths(paths);
@@ -143,85 +136,108 @@ function App() {
       directory: true,
     });
 
-    if (!selected) {
-      return;
-    }
+    if (!selected) return;
 
     const paths = Array.isArray(selected) ? selected : [selected];
     await sharePaths(paths);
   }
+
   function removeSharedFile(id: string) {
-    unshareFile(id)
-    setSharedFiles((prev) => prev.filter((file) => file.id !== id));
+    unshareSharedFile(id);
   }
 
   async function clearSharedFiles() {
-    await invoke("unshare_all_files");
-    setSharedFiles([]);
-  }
-
-  async function callCommand<T>(
-    command: string,
-    onSuccess: (ret: T) => void,
-    args?: any
-  ): Promise<void> {
     try {
       setErrorMsg("");
-      const ret = await invoke<T>(command, args);
-      console.log(command, ret);
-      onSuccess(ret);
+      await unshareAllFiles();
+      setSharedFiles([]);
     } catch (e) {
-      console.error(command, e);
+      console.error(e);
       setErrorMsg(String(e));
-      throw e;
+      dialog.showConfirmDialog({
+        title: "Error",
+        body: `${e}`,
+      });
     }
   }
-
-  //async function greet() {
-  //  try {
-  //    setErrorMsg("");
-  //    const msg = await invoke<string>("greet", { name: "n" });
-  //    setGreetMsg(msg);
-  //  } catch (e) {
-  //    setErrorMsg(String(e));
-  //  }
-  //}
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
 
     const unlistenPromise = appWindow.onDragDropEvent(async (event) => {
-      console.log(event);
-
-      if (event.payload.type !== "drop") {
-        return;
-      }
+      if (event.payload.type !== "drop") return;
 
       const paths = event.payload.paths;
-      console.log(paths);
-
       await sharePaths(paths);
     });
 
     return () => {
       unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [, serverStatus]);
+  }, [serverStatus]);
 
-  //
   useEffect(() => {
-    const unlistenPromise = listen<ReceivedMessage>("message-received", (event) => {
-      setReceivedMessages((prev) => [event.payload, ...prev].slice(0, 100));
-      dialog.showConfirmDialog({
-        title: "Received Message", 
-        body: `${event.payload.text} \r\n from ${event.payload.from} (${event.payload.method})`
-      })
-    });
+    const unlistenPromise = listen<ReceivedMessage>(
+      "message-received",
+      (event) => {
+        setReceivedMessages((prev) => [event.payload, ...prev].slice(0, 100));
+        dialog.showConfirmDialog({
+          title: "Received Message",
+          body: `${event.payload.text} \r\n from ${event.payload.from} (${event.payload.method})`,
+        });
+      },
+    );
 
     return () => {
       unlistenPromise.then((unlisten) => unlisten());
     };
   }, []);
+
+  const onStartServer = async (): Promise<ServerStatus> => {
+    if (!hostname.endsWith(".local")) {
+      dialog.showConfirmDialog({
+        title: "Failed to start",
+        body: "require hostname ends with .local",
+      });
+      return serverStatus;
+    }
+
+    try {
+      setErrorMsg("");
+      const status = await startServer({
+        hostname,
+        port,
+        id: "mdrop",
+        password,
+        isHttps,
+        localOnly,
+      });
+      await updateWebMdropConfig();
+
+      setServerStatus(status);
+      return status;
+    } catch (e) {
+      setErrorMsg(String(e));
+      dialog.showConfirmDialog({
+        title: "Error",
+        body: `${e}`,
+      });
+      return serverStatus;
+    }
+  };
+
+  const onStartBonjure = async () => {
+    try {
+      setErrorMsg("");
+      setBonjourStatus(await startBonjour());
+    } catch (e) {
+      setErrorMsg(String(e));
+      dialog.showConfirmDialog({
+        title: "Error",
+        body: `${e}`,
+      });
+    }
+  };
   return (
     <main className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-3xl px-6 py-8">
@@ -237,6 +253,7 @@ function App() {
             <span className="font-bold">Error:</span> {errorMsg}
           </div>
         )}
+
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">
@@ -276,38 +293,43 @@ function App() {
           </div>
 
           {sharedFiles.map((file) => {
-            let urlPath = (new URL(file.url)).pathname;
-            return(
-            <div
-              key={file.id}
-              className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate font-medium text-slate-100">
-                    {file.name}
-                  </div>
-                  <a
-                    className="break-all text-sky-300 underline underline-offset-4"
-                    href={rootUrl().replace(RegExp("\\/$"), "") + "/" + urlPath.replace(RegExp("^\\/"), "")}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {rootUrl().replace(RegExp("\\/$"), "") + "/" + urlPath.replace(RegExp("^\\/"), "")}
-                  </a>
-                </div>
+            const urlPath = new URL(file.url).pathname;
+            const displayUrl =
+              rootUrl().replace(/\/$/, "") + "/" + urlPath.replace(/^\//, "");
 
-                <button
-                  type="button"
-                  onClick={() => removeSharedFile(file.id)}
-                  className="shrink-0 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-                >
-                  Remove
-                </button>
+            return (
+              <div
+                key={file.id}
+                className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-slate-100">
+                      {file.name}
+                    </div>
+                    <a
+                      className="break-all text-sky-300 underline underline-offset-4"
+                      href={displayUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {displayUrl}
+                    </a>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeSharedFile(file.id)}
+                    className="shrink-0 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
-            </div>
-          )})}
+            );
+          })}
         </section>
+
         <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold">Server</h2>
@@ -315,7 +337,10 @@ function App() {
           </div>
 
           <div className="space-y-2">
-            <StatusRow label="Running" value={serverStatus.running ? "Yes" : "No"} />
+            <StatusRow
+              label="Running"
+              value={serverStatus.running ? "Yes" : "No"}
+            />
             <StatusRow label="Port" value={serverStatus.port ?? "-"} />
             <StatusRow
               label="URL"
@@ -328,23 +353,14 @@ function App() {
                     rel="noreferrer"
                   >
                     {serverStatus.url}
-                    <QRCodeSVG
-                      value={serverStatus.url}
-                      size={180}
-                      level="M"
-                    />
+                    <QRCodeSVG value={serverStatus.url} size={180} level="M" />
                   </a>
                 ) : (
                   "-"
                 )
               }
             />
-            <StatusRow
-              label="IP"
-              value={
-                (serverStatus.ips ?? []).join(",")
-              }
-            />
+            <StatusRow label="IP" value={(serverStatus.ips ?? []).join(",")} />
             <StatusRow label="ID" value={"mdrop"} />
             <StatusRow
               label="Password"
@@ -371,68 +387,45 @@ function App() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <Button
-              onClick={async () => {
-                if (!hostname.endsWith(".local")) {
-                  dialog.showConfirmDialog({
-                    title: "Failed to start",
-                    body: "require hostname ends with .local",
-                  })
-                  return;
-                }
-                try {
-                  await callCommand<ServerStatus>("start_server", setServerStatus, {
-                    req: {
-                      hostname,
-                      port,
-                      id: "mdrop",
-                      password: password,
-                      isHttps: isHttps,
-                      localOnly: localOnly,
-                    },
-                  })
-                } catch (e) {
-                  dialog.showConfirmDialog({
-                    title: "Error",
-                    body: `${e}`
-                  })
-                }
-              }
-              }
+              onClick={() => onStartServer()}
               disabled={serverStatus.running}
             >
               Start
             </Button>
+
             <Button
               onClick={async () => {
-                //
                 try {
-                  await callCommand<ServerStatus>("stop_server", setServerStatus)
-                  await callCommand<BonjourStatus>("stop_bonjour", setBonjourStatus)
+                  setErrorMsg("");
+                  setServerStatus(await stopServer());
+                  setBonjourStatus(await stopBonjour());
                 } catch (e) {
+                  setErrorMsg(String(e));
                   dialog.showConfirmDialog({
                     title: "Error",
-                    body: `${e}`
-                  })
+                    body: `${e}`,
+                  });
                 }
-              }
-              }
+              }}
               disabled={!serverStatus.running}
               variant="secondary"
             >
               Stop
             </Button>
+
             <Button
               onClick={async () => {
                 try {
-                  await callCommand<ServerStatus>("get_server_status", setServerStatus)
+                  setErrorMsg("");
+                  setServerStatus(await getServerStatus());
                 } catch (e) {
+                  setErrorMsg(String(e));
                   dialog.showConfirmDialog({
                     title: "Error",
-                    body: `${e}`
-                  })
+                    body: `${e}`,
+                  });
                 }
-              }
-              }
+              }}
               variant="ghost"
             >
               Status
@@ -458,30 +451,23 @@ function App() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <Button
-              onClick={async () => {
-                try {
-                  await callCommand<BonjourStatus>("start_bonjour", setBonjourStatus)
-                } catch (e) {
-                  dialog.showConfirmDialog({
-                    title: "Error",
-                    body: `${e}`
-                  })
-                }
-              }
-              }
+              onClick={() => onStartBonjure()}
               disabled={!serverStatus.running || bonjourStatus.running}
             >
               Start Bonjour
             </Button>
+
             <Button
               onClick={async () => {
                 try {
-                  await callCommand<BonjourStatus>("stop_bonjour", setBonjourStatus)
+                  setErrorMsg("");
+                  setBonjourStatus(await stopBonjour());
                 } catch (e) {
+                  setErrorMsg(String(e));
                   dialog.showConfirmDialog({
                     title: "Error",
-                    body: `${e}`
-                  })
+                    body: `${e}`,
+                  });
                 }
               }}
               disabled={!bonjourStatus.running}
@@ -489,21 +475,20 @@ function App() {
             >
               Stop Bonjour
             </Button>
+
             <Button
               onClick={async () => {
                 try {
-                  await callCommand<BonjourStatus>(
-                    "get_bonjour_status",
-                    setBonjourStatus,
-                  )
+                  setErrorMsg("");
+                  setBonjourStatus(await getBonjourStatus());
                 } catch (e) {
+                  setErrorMsg(String(e));
                   dialog.showConfirmDialog({
                     title: "Error",
-                    body: `${e}`
-                  })
+                    body: `${e}`,
+                  });
                 }
-              }
-              }
+              }}
               variant="ghost"
             >
               Bonjour Status
@@ -513,34 +498,19 @@ function App() {
           <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm">
             <div className="mb-1 text-slate-400">Bonjour URL</div>
             <code className="break-all text-sky-300">
-
               <a
                 className="text-sky-300 underline underline-offset-4 hover:text-sky-200"
-                href={(isHttps ? "https" : "http") + `://${hostname}:${port}/`}
+                href={bonjureRootUrl()}
                 target="_blank"
                 rel="noreferrer"
               >
-                <QRCodeSVG
-                  value={(isHttps ? "https" : "http") + `://${hostname}:${port}/`}
-                  size={180}
-                  level="M"
-                />
+                <QRCodeSVG value={bonjureRootUrl()} size={180} level="M" />
                 {isHttps ? "https" : "http"}://{hostname}:{port}/
               </a>
-
             </code>
-            {
-              //<code className="break-all text-sky-300">
-              //  http://mdrop.local:7878/
-              //</code>
-            }
           </div>
         </section>
-        {
-          //
-          //
-          //
-        }
+
         <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
           <details>
             <summary className="cursor-pointer text-sm font-medium text-slate-400 hover:text-slate-200">
@@ -571,51 +541,41 @@ function App() {
                 />
               </label>
 
-
               <label className="flex items-center gap-3 text-sm">
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-slate-700 bg-slate-950"
                   checked={localOnly}
-                  onChange={async (e) => {
-                    if (serverStatus.running) {
-                      return;
-                    }
-                    const enabled = e.target.checked;
-                    setLocalOnly(enabled);
-                    //await invoke("set_local_only", { enabled });
+                  onChange={(e) => {
+                    if (serverStatus.running) return;
+                    setLocalOnly(e.target.checked);
                   }}
                   readOnly={serverStatus.running}
                 />
                 <span className="text-slate-300">Local only</span>
               </label>
+
               <p className="text-xs text-slate-500">
                 Allow access only from local/private network addresses.
               </p>
               <p className="text-xs text-slate-500">
                 Default: tetorica-mdrop.local:7878
               </p>
+
               <label className="flex items-center gap-3 text-sm">
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-slate-700 bg-slate-950"
                   checked={isHttps}
-                  onChange={async (e) => {
-                    if (serverStatus.running) {
-                      return;
-                    }
-                    const enabled = e.target.checked;
-                    setIsHttps(enabled);
+                  onChange={(e) => {
+                    if (serverStatus.running) return;
+                    setIsHttps(e.target.checked);
                   }}
                   readOnly={serverStatus.running}
                 />
                 <span className="text-slate-300">Use Https</span>
               </label>
-
             </div>
-            {
-
-            }
           </details>
         </section>
       </div>
@@ -675,7 +635,11 @@ function Button({
   };
 
   return (
-    <button className={`${base} ${variants[variant]}`} onClick={onClick} disabled={disabled}>
+    <button
+      className={`${base} ${variants[variant]}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
       {children}
     </button>
   );

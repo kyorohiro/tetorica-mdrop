@@ -6,7 +6,7 @@ import { useFileListDialog } from "./useFileListDialog";
 import { usePreviewDialog } from "./usePreviewDialog";
 import { sleep, isAudio, isEpub, isImage, isPdf, isText, isVideo  } from "../utils";
 
-function WebApp() {
+function WebApp({ active }: { active?: boolean }) {
     const [errorMsg,] = useState<string>("");
     const [sharedTargets, setSharedTargets] = useState<Target[]>([]);
     const [apiServer, setApiServer] = useState("");
@@ -28,7 +28,7 @@ function WebApp() {
         } finally {
             setLoading(false);
         }
-    }, [])
+    }, [/**/, active])
 
     const onSelectTarget = async (target: Target) => {
         await showFileListDialog({
