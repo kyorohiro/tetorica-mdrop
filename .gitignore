@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 target
 dist-cli/
+dist-cli2/
