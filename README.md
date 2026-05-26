@@ -91,6 +91,9 @@ cp file.zip "$(brew --prefix)/var/tetorica-mdrop/share/"
 brew services start tetorica-mdrop
 ```
 
+- More Detail
+[](https://github.com/kyorohiro/homebrew-tetorica/tree/main)
+
 
 # How It Works
 
@@ -255,6 +258,9 @@ codesign \
   --options runtime \
   --sign "Developer ID Application: YOUR NAME (TEAMID)" \
   target/aarch64-apple-darwin/release/mdrop
+
+shasum -a 256 tetorica-mdrop-aarch64-apple-darwin.tar.gz
+shasum -a 256 tetorica-mdrop-x86_64-apple-darwin.tar.gz
 ```
 
 # Warning:
