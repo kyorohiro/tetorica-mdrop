@@ -54,7 +54,7 @@ Launch the app and click:
 
 On any device connected to the same Wi-Fi:
 
-[http://mdrop.local:7878/](http://mdrop.local:7878/)
+http://mdrop.local:7878/
 
 or
 
