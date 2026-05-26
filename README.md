@@ -214,10 +214,25 @@ Using the IP address (e.g. http://192.168.x.x:7878/) is more reliable than .loca
 
 # CLI
 
+## RUN
 ```
 cd src-cli
 cargo run -p tetorica-mdrop-cli -- ./some-file.mp4
 cargo run --features dev_web -p tetorica-mdrop-cli -- ./some-file.mp4
+```
+
+## Build
+
+```
+cd src-cli
+cargo build --release --target aarch64-apple-darwin
+cargo build --release --target x86_64-apple-darwin
+codesign \
+  --force \
+  --timestamp \
+  --options runtime \
+  --sign "Developer ID Application: YOUR NAME (TEAMID)" \
+  target/aarch64-apple-darwin/release/mdrop
 ```
 
 # Warning:
