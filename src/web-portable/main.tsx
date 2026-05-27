@@ -1,10 +1,10 @@
 import ReactDOM from "react-dom/client";
 
 import { DialogProvider } from "../useDialog";
-import { WebApp } from "../web/WebApp";
+import { PortableApp } from "./PortableApp";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <DialogProvider>
-      <WebApp/>
+      <PortableApp/>
     </DialogProvider>
 );

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import "./App.css";
+import "../App.css";
 import { Loader } from "lucide-react";
 import { FileTargetFile, getDownloadList, getMeta, Target, TargetFile } from "./api";
 import { useFileListDialog } from "./useFileListDialog";

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import "./App.css";
+import "../App.css";
 
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useDialog } from "./useDialog";
+import { useDialog } from "../useDialog";
 import { QRCodeSVG } from "qrcode.react";
 
 import {
