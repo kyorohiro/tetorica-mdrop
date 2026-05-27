@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
 import { ReactReader } from "react-reader";
-import { isAudio, isImage, isPdf, isText, isVideo, isEpub } from "../utils";
+import { isAudio, isImage, isPdf, isText, isVideo, isEpub, isArchive, makeBlobFromUrl } from "../utils";
+import { useZipFileListDialog } from "./useZipFileListDialog";
 
 type PreviewDialogOptions = {
     files: TargetFile[];
@@ -58,6 +59,7 @@ function PreviewDialog({
     const [epubLocation, setEpubLocation] = React.useState<string | number>(0);
     const renditionRef = React.useRef<any>(null);
     const [loadingMessage, setLoadingMessage] = useState("");
+    const { showZipFileListDialog } = useZipFileListDialog();
 
     const file = files[index];
 
@@ -70,6 +72,14 @@ function PreviewDialog({
         [files.length]
     );
 
+    const getUrlFromTargetFile = async (file: TargetFile) => {
+        const nextSrc = getObjectUrl
+            ? await getObjectUrl(file, (loaded, total) => {
+                setLoadingMessage(`${loaded}/${total}`)
+            })
+            : downloadUrl(apiServer, file);
+        return nextSrc;
+    }
     React.useEffect(() => {
         if (!file) return;
 
@@ -80,11 +90,7 @@ function PreviewDialog({
             setSrc("");
             setText("");
             setLoadingMessage(``)
-            const nextSrc = getObjectUrl
-                ? await getObjectUrl(file, (loaded, total) => {
-                    setLoadingMessage(`${loaded}/${total}`)
-                })
-                : downloadUrl(apiServer, file);
+            const nextSrc = await getUrlFromTargetFile(file);
             console.log(">> nextSrc", nextSrc)
 
             if (!alive) {
@@ -225,6 +231,22 @@ function PreviewDialog({
                                 renditionRef.current = rendition;
                             }}
                         />
+                    </div>
+                ) : isArchive(file.path) ? (
+                    <div className="text-sm text-slate-400">
+                        <button onClick={
+                            async () => {
+                                const f = await getUrlFromTargetFile(file);
+                                showZipFileListDialog({
+                                    initialPath:"/",
+                                    title: file.path,
+                                    source: {
+                                        type: "blob",
+                                        blob: await  makeBlobFromUrl(f)
+                                    }
+                                })
+                            }
+                        }>OPEN</button>
                     </div>
                 ) : (
                     <div className="text-sm text-slate-400">

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import "./App.css";
 import { Loader } from "lucide-react";
-import { getDownloadList, getMeta, Target } from "./api";
+import { FileTargetFile, getDownloadList, getMeta, Target, TargetFile } from "./api";
 import { useFileListDialog } from "./useFileListDialog";
 import { usePreviewDialog } from "./usePreviewDialog";
-import { sleep, isAudio, isEpub, isImage, isPdf, isText, isVideo  } from "../utils";
+import { sleep, isAudio, isEpub, isImage, isPdf, isText, isVideo, isArchive } from "../utils";
+
 
 function WebApp({ active }: { active?: boolean }) {
     const [errorMsg,] = useState<string>("");
@@ -30,22 +31,70 @@ function WebApp({ active }: { active?: boolean }) {
         }
     }, [/**/, active])
 
+
     const onSelectTarget = async (target: Target) => {
         await showFileListDialog({
-            title: target.path.replace(/^.*[\/]/,""),
+            title: target.path.replace(/^.*[\/]/, ""),
             apiServer,
             targetId: target.id,
             initialPath: "/",
         });
-
     }
 
-    useEffect(() => {
-        onReload();
-    }, [onReload]);
+    const onDrop = async (ev: React.DragEvent) => {
+        ev.preventDefault();
 
+        const files = ev.dataTransfer.files ?? [];
+        if (!files || files.length == 0) return;
+        const targets: FileTargetFile[] = []
+        for (let i = 0; i < files.length; i++) {
+            const f = files[i]
+            targets.push({
+                id: "",
+                entry: f,
+                isDir: false,
+                isFile: true,
+                path: f.name,
+                createdAt: 0, modifiedAt: 0, size: 0, isRoot: true,
+            }
+            )
+        }
+
+        // File は Blob を継承しているので、そのまま渡せる
+        showPreviewDialog({
+            files: targets,
+            initialIndex: 0,
+            apiServer,
+            getObjectUrl: async (file: TargetFile): Promise<string> => {
+                return URL.createObjectURL((file as FileTargetFile).entry!);
+            },
+            download: async (file: TargetFile): Promise<void> => {
+                let url: string | undefined;
+                try {
+                    setLoading(true);
+                    url = URL.createObjectURL((file as FileTargetFile).entry!);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = file.path.replace(/.*\//, "");
+                    a.target = "_blank";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } finally {
+                    if (url) {
+                        URL.revokeObjectURL(url);
+                    }
+                    setLoading(false);
+                }
+            }
+        });
+    }
+
+    const onDragOver = (ev: React.DragEvent) => {
+        ev.preventDefault();
+    };
     return (
-        <main ref={mainRef} className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
+        <main ref={mainRef} onDrop={onDrop} onDragOver={onDragOver} className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
             <div className="mx-auto max-w-3xl px-6 py-8">
                 <header className="mb-8">
                     <p className="text-sm text-slate-400">Local file sharing prototype</p>
@@ -96,7 +145,7 @@ function WebApp({ active }: { active?: boolean }) {
 
                                                     //href={`${apiServer}/download/${file.id}`}
                                                     onClick={async () => {
-                                                        if (isImage(file.path) || isVideo(file.path) || isText(file.path) || isAudio(file.path) || isPdf(file.path) || isEpub(file.path)) {
+                                                        if (isImage(file.path) || isVideo(file.path) || isText(file.path) || isAudio(file.path) || isPdf(file.path) || isEpub(file.path) || isArchive(file.path)) {
                                                             //const index = sortedFiles.findIndex((f) => f.path === file.path);
 
                                                             await showPreviewDialog({
@@ -110,7 +159,7 @@ function WebApp({ active }: { active?: boolean }) {
                                                             const a = document.createElement("a");
                                                             a.href = `${apiServer}/download/${file.id}`;
                                                             a.download = file.path.replace(/.*\//, "") || "download";
-                                                        
+
                                                             document.body.appendChild(a);
                                                             a.click();
                                                             document.body.removeChild(a);

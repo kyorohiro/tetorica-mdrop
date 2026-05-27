@@ -68,3 +68,18 @@ export const isCover = (path: string) => {
     return /^(cover|表紙|hyoushi|000)\.(png|jpe?g|webp|gif|svg|avif)$/i.test(name);
 };
 
+
+export async function makeBlobFromUrl(url: string) {
+  try {
+    // データを取ってくる
+    const response = await fetch(url);
+    
+    // Blobに変換する
+    const blob = await response.blob();
+    
+    return blob;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}

@@ -17,6 +17,10 @@ type TargetFile = {
     isRoot?: boolean,
 }
 
+type FileTargetFile = TargetFile & {
+    entry?: File;
+};
+
 const getMeta = async (): Promise<{ apiServer: string }> => {
     const apiServer = window.__MDROP_CONFIG__?.apiServer;
     if (!apiServer || apiServer == "") {
@@ -82,5 +86,6 @@ export {
 
 export type {
     Target,
-    TargetFile
+    TargetFile,
+    FileTargetFile
 }
