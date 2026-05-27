@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { Loader } from "lucide-react";
 import { FileTargetFile, getDownloadList, getMeta, Target, TargetFile } from "./api";
@@ -93,6 +93,9 @@ function WebApp({ active }: { active?: boolean }) {
     const onDragOver = (ev: React.DragEvent) => {
         ev.preventDefault();
     };
+    useEffect(()=>{
+        onReload()
+    }, [onReload]);
     return (
         <main ref={mainRef} onDrop={onDrop} onDragOver={onDragOver} className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
             <div className="mx-auto max-w-3xl px-6 py-8">
