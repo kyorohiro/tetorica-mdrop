@@ -9,27 +9,35 @@ function PortableApp({ active }: { active?: boolean }) {
     const [loading, setLoading] = useState(false);
     const mainRef = useRef<HTMLElement>(null);
     const { showPreviewDialog } = usePreviewDialog();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
 
-    const onDrop = async (ev: React.DragEvent) => {
-        ev.preventDefault();
+    function filesToTargets(files: FileList | File[]) {
+        const targets: FileTargetFile[] = [];
 
-        const files = ev.dataTransfer.files ?? [];
-        if (!files || files.length == 0) return;
-        const targets: FileTargetFile[] = []
         for (let i = 0; i < files.length; i++) {
-            const f = files[i]
+            const f = files[i];
+
             targets.push({
                 id: "",
                 entry: f,
                 isDir: false,
                 isFile: true,
-                path: f.name,
-                createdAt: 0, modifiedAt: 0, size: 0, isRoot: true,
-            }
-            )
+                path: (f as any).webkitRelativePath || f.name,
+                createdAt: 0,
+                modifiedAt: f.lastModified ?? 0,
+                size: f.size ?? 0,
+                isRoot: true,
+            });
         }
 
-        // File は Blob を継承しているので、そのまま渡せる
+        return targets;
+    }
+
+    function openPreview(files: FileList | File[]) {
+        const targets = filesToTargets(files);
+        if (targets.length === 0) return;
+
         showPreviewDialog({
             files: targets,
             initialIndex: 0,
@@ -50,18 +58,31 @@ function PortableApp({ active }: { active?: boolean }) {
                     a.click();
                     document.body.removeChild(a);
                 } finally {
-                    if (url) {
-                        URL.revokeObjectURL(url);
-                    }
+                    if (url) URL.revokeObjectURL(url);
                     setLoading(false);
                 }
-            }
+            },
         });
     }
 
-    const onDragOver = (ev: React.DragEvent) => {
+    async function selectFiles() {
+        fileInputRef.current?.click();
+    }
+
+    async function selectFolders() {
+        folderInputRef.current?.click();
+    }
+
+    const onDrop = async (ev: React.DragEvent) => {
         ev.preventDefault();
+        const files = ev.dataTransfer.files;
+        if (files && files.length > 0) {
+            openPreview(files);
+        }
     };
+    const onDragOver = async (ev: React.DragEvent) => {
+        ev.preventDefault();
+    }
     return (
         <main ref={mainRef} onDrop={onDrop} onDragOver={onDragOver} className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
             <div className="mx-auto max-w-3xl px-6 py-8">
@@ -81,6 +102,54 @@ function PortableApp({ active }: { active?: boolean }) {
                         <h2 className="text-lg font-semibold">
                             Shared Files
                         </h2>
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                onClick={selectFiles}
+                                className="rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
+                            >
+                                Drop files here, or click to add files
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={selectFolders}
+                                className="rounded-xl border border-dashed border-slate-600 bg-slate-950 p-6 text-center text-sm text-slate-300 transition hover:border-sky-400 hover:bg-slate-900"
+                            >
+                                Drop folders here, or click to add folders
+                            </button>
+                        </div>
+                        {
+                            //
+                        }
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={(ev) => {
+                                const files = ev.currentTarget.files;
+                                if (files) openPreview(files);
+                                ev.currentTarget.value = "";
+                            }}
+                        />
+
+                        <input
+                            ref={folderInputRef}
+                            type="file"
+                            multiple
+                            // React の型に webkitdirectory がない場合があるので any 扱い
+                            {...({ webkitdirectory: "true" } as any)}
+                            className="hidden"
+                            onChange={(ev) => {
+                                const files = ev.currentTarget.files;
+                                if (files) openPreview(files);
+                                ev.currentTarget.value = "";
+                            }}
+                        />
+                        {
+                            //
+                        }
                     </div>
                 </section>
                 {
