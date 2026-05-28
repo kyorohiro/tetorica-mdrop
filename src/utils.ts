@@ -2,6 +2,27 @@ export const sleep = (ms: number): Promise<void> => {
     return new Promise(resolve => setTimeout(resolve, ms));
 };
 
+export const supportedExtensions = [
+  // Images
+  "png", "jpg", "jpeg", "webp", "gif", "svg", "avif",
+
+  // Videos
+  "mp4", "m4v", "webm", "ogv", "mov",
+
+  // Audio
+  "mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "opus",
+
+  // Documents
+  "pdf", "epub",
+
+  // Archives / Comic
+  "zip", "cbz",
+
+  // Text / Code
+  "txt", "md", "markdown", "json", "html", "css", "js", "jsx",
+  "ts", "tsx", "xml", "rs", "toml", "yaml", "yml", "sql",
+  "sh", "py", "java", "c", "cpp", "h",
+];
 export const mimeFromPath = (path: string): string => {
     const lower = path.toLowerCase();
 

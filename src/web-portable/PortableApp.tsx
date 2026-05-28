@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import "../App.css";
-import { Target, TargetFile, FileTargetFile } from "../web/api";
+import { TargetFile, FileTargetFile } from "../web/api";
 import { usePreviewDialog } from "../web/usePreviewDialog";
+import { supportedExtensions } from "../utils";
 
 
-function PortableApp({ active }: { active?: boolean }) {
+function PortableApp() {
     const [errorMsg,] = useState<string>("");
-    const [loading, setLoading] = useState(false);
+    const [, setLoading] = useState(false);
     const mainRef = useRef<HTMLElement>(null);
     const { showPreviewDialog } = usePreviewDialog();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,21 +88,22 @@ function PortableApp({ active }: { active?: boolean }) {
         <main ref={mainRef} onDrop={onDrop} onDragOver={onDragOver} className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
             <div className="mx-auto max-w-3xl px-6 py-8">
                 <header className="mb-8">
-                    <p className="text-sm text-slate-400">Local file sharing prototype</p>
+                    <p className="text-sm text-slate-400"></p>
                     <h1 className="mt-1 text-3xl font-bold tracking-tight">
                         Tetorica mDrop
                     </h1>
+                    <h3 className="mt-1 text-1x1 font-bold tracking-tight">
+                        Vieiwer Only No Cloud No Upload into Server
+                    </h3>
                 </header>
                 {errorMsg && (
                     <div className="mb-6 rounded-xl border border-red-400/40 bg-red-950/50 p-4 text-sm text-red-100">
                         <span className="font-bold">Error:</span> {errorMsg}
                     </div>
                 )}
+
                 <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg">
                     <div className="flex items-center justify-between gap-3">
-                        <h2 className="text-lg font-semibold">
-                            Shared Files
-                        </h2>
                         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <button
                                 type="button"
@@ -152,6 +154,8 @@ function PortableApp({ active }: { active?: boolean }) {
                         }
                     </div>
                 </section>
+                <p className="text-sm text-slate-400">zip, rar, image, video, pdf, epub({supportedExtensions.join(", ")})</p>
+
                 {
                     //
                 }
