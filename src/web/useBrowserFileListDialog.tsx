@@ -45,38 +45,40 @@ function listBrowserFiles(allFiles: FileTargetFile[], currentPath: string): Targ
   const prefix = cleanPath ? `${cleanPath}/` : "";
 
   const dirs = new Map<string, TargetFile>();
-  const files: TargetFile[] = [];
+  const directFiles: TargetFile[] = [];
 
   for (const file of allFiles) {
     const rawPath = normalizePath(file.path);
-    if (!rawPath.startsWith(prefix)) continue;
 
-    const rest = rawPath.slice(prefix.length);
+    if (prefix && !rawPath.startsWith(prefix)) continue;
+
+    const rest = prefix ? rawPath.slice(prefix.length) : rawPath;
     if (!rest) continue;
 
-    const parts = rest.split("/");
+    const slashIndex = rest.indexOf("/");
 
-    if (parts.length === 1) {
-      files.push(file);
-    } else {
-      const dirName = parts[0];
-      const dirPath = prefix + dirName;
+    if (slashIndex < 0) {
+      directFiles.push(file);
+      continue;
+    }
 
-      if (!dirs.has(dirPath)) {
-        dirs.set(dirPath, {
-          id: `dir:${dirPath}`,
-          path: dirPath,
-          isFile: false,
-          isDir: true,
-          size: 0,
-          createdAt: undefined,
-          modifiedAt: undefined,
-        });
-      }
+    const dirName = rest.slice(0, slashIndex);
+    const dirPath = prefix + dirName;
+
+    if (!dirs.has(dirPath)) {
+      dirs.set(dirPath, {
+        id: `dir:${dirPath}`,
+        path: dirPath,
+        isFile: false,
+        isDir: true,
+        size: 0,
+        createdAt: undefined,
+        modifiedAt: undefined,
+      });
     }
   }
 
-  return [...dirs.values(), ...files];
+  return [...dirs.values(), ...directFiles];
 }
 
 type BrowserFileListDialogOptions = {

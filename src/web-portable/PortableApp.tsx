@@ -88,19 +88,23 @@ function PortableApp() {
 
     type FileWithRelativePath = File & { webkitRelativePath?: string };
 
-    async function getDroppedFiles(ev: React.DragEvent): Promise<FileWithRelativePath[]> {
-        const items = Array.from(ev.dataTransfer.items ?? []);
+    async function getDroppedFiles(
+        ev: React.DragEvent
+    ): Promise<FileWithRelativePath[]> {
         const files: FileWithRelativePath[] = [];
 
         async function readEntry(entry: any, prefix = ""): Promise<void> {
             if (entry.isFile) {
                 await new Promise<void>((resolve, reject) => {
-                    entry.file((file: FileWithRelativePath) => {
+                    entry.file((file: File) => {
+                        const relativePath = `${prefix}${file.name}`;
+
                         Object.defineProperty(file, "webkitRelativePath", {
-                            value: `${prefix}${file.name}`,
+                            value: relativePath,
                             configurable: true,
                         });
-                        files.push(file);
+
+                        files.push(file as FileWithRelativePath);
                         resolve();
                     }, reject);
                 });
@@ -108,9 +112,9 @@ function PortableApp() {
             }
 
             if (entry.isDirectory) {
+                const dirPrefix = `${prefix}${entry.name}/`;
                 const reader = entry.createReader();
 
-                // readEntries は一度で全部返らないことがある
                 while (true) {
                     const entries: any[] = await new Promise((resolve, reject) => {
                         reader.readEntries(resolve, reject);
@@ -119,46 +123,65 @@ function PortableApp() {
                     if (entries.length === 0) break;
 
                     for (const child of entries) {
-                        await readEntry(child, `${prefix}${entry.name}/`);
+                        await readEntry(child, dirPrefix);
                     }
                 }
             }
         }
 
-        for (const item of items) {
-            const entry = (item as any).webkitGetAsEntry?.();
-            if (entry) {
-                await readEntry(entry, "");
-            } else {
+        const items = Array.from(ev.dataTransfer.items ?? []);
+
+        // await 前に entry / file を確保しておく
+        const entriesOrFiles = items
+            .map((item) => {
+                const entry = (item as any).webkitGetAsEntry?.();
+                if (entry) {
+                    return { type: "entry" as const, entry };
+                }
+
                 const file = item.getAsFile?.();
-                if (file) files.push(file as FileWithRelativePath);
+                if (file) {
+                    return { type: "file" as const, file };
+                }
+
+                return null;
+            })
+            .filter(Boolean);
+
+        for (const item of entriesOrFiles) {
+            if (!item) continue;
+
+            if (item.type === "entry") {
+                try {
+                    await readEntry(item.entry, "");
+                } catch (e) {
+                    console.error("readEntry failed:", item.entry?.name, e);
+                }
+            } else {
+                files.push(item.file as FileWithRelativePath);
             }
         }
 
         return files;
     }
     //
-
     const onDrop = async (ev: React.DragEvent) => {
         ev.preventDefault();
-        const files = ev.dataTransfer.files;
-        const items = await getDroppedFiles(ev);
-        console.log(files);
-        console.log(items);
-        const uniqueMap = new Map([...files, ...items].map(item => [item.name, item]));
+        const droppedFiles = await getDroppedFiles(ev);
+        const uniqueMap = new Map<string, File>();
 
-        // 2. Map の中身を取り出して、新しい配列に戻します
+        for (const file of droppedFiles) {
+            const key = (file as any).webkitRelativePath || file.name;
+            uniqueMap.set(key, file);
+        }
+
         const targets = Array.from(uniqueMap.values());
-        if (files && files.length > 0) {
+        console.log(">> targets");
+        console.log(targets);
+        if (targets.length > 0) {
             openPreview(targets);
         }
-        /*
-        showBrowserFileListDialog({
-            files: targets,
-            initialPath: "/",
-            title: ""
-        })
-        */
+
     };
 
     const onDragOver = async (ev: React.DragEvent) => {
