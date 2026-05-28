@@ -44,10 +44,10 @@ const parentPathOf = (path: string) => {
     const parent = clean.split("/").slice(0, -1).join("/");
     return parent || "/";
 };
-export function useFileListDialog() {
+export function useMDropFileListDialog() {
     const { showDialog } = useDialog();
 
-    const showFileListDialog = React.useCallback(
+    const showMDropFileListDialog = React.useCallback(
         async (opts: FileListDialogOptions) => {
             return await showDialog<void>(({ close }) => (
                 <FileListDialog {...opts} onClose={close} />
@@ -56,7 +56,7 @@ export function useFileListDialog() {
         [showDialog]
     );
 
-    return { showFileListDialog };
+    return { showMDropFileListDialog };
 }
 
 function FileListDialog({

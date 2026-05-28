@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "../App.css";
 import { Loader } from "lucide-react";
 import { FileTargetFile, getDownloadList, getMeta, Target, TargetFile } from "./api";
-import { useFileListDialog } from "./useFileListDialog";
+import { useMDropFileListDialog } from "./useMDropFileListDialog";
 import { usePreviewDialog } from "./usePreviewDialog";
 import { sleep, isAudio, isEpub, isImage, isPdf, isText, isVideo, isArchive } from "../utils";
 
@@ -13,7 +13,7 @@ function WebApp({ active }: { active?: boolean }) {
     const [apiServer, setApiServer] = useState("");
     const [loading, setLoading] = useState(false);
     const mainRef = useRef<HTMLElement>(null);
-    const { showFileListDialog } = useFileListDialog();
+    const { showMDropFileListDialog: showFileListDialog } = useMDropFileListDialog();
     const { showPreviewDialog } = usePreviewDialog();
     //
     const onReload = useCallback(async () => {
