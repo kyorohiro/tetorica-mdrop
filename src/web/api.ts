@@ -12,8 +12,8 @@ type TargetFile = {
     isFile: boolean,
     isDir: boolean,
     size: number,
-    createdAt: number,
-    modifiedAt: number,
+    createdAt?: number,
+    modifiedAt?: number,
     isRoot?: boolean,
 }
 

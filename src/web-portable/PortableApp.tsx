@@ -3,6 +3,7 @@ import "../App.css";
 import { TargetFile, FileTargetFile } from "../web/api";
 import { usePreviewDialog } from "../web/usePreviewDialog";
 import { supportedExtensions } from "../utils";
+import { useBrowserFileListDialog } from "../web/useBrowserFileListDialog";
 
 
 function PortableApp() {
@@ -10,6 +11,7 @@ function PortableApp() {
     const [, setLoading] = useState(false);
     const mainRef = useRef<HTMLElement>(null);
     const { showPreviewDialog } = usePreviewDialog();
+    const { showBrowserFileListDialog } = useBrowserFileListDialog();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +41,12 @@ function PortableApp() {
         const targets = filesToTargets(files);
         if (targets.length === 0) return;
 
+        showBrowserFileListDialog({
+            files: targets,
+            initialPath: "/",
+            title: ""
+        })
+        /*
         showPreviewDialog({
             files: targets,
             initialIndex: 0,
@@ -64,6 +72,7 @@ function PortableApp() {
                 }
             },
         });
+        */
     }
 
     async function selectFiles() {
@@ -132,11 +141,24 @@ function PortableApp() {
 
     const onDrop = async (ev: React.DragEvent) => {
         ev.preventDefault();
-        //const files = ev.dataTransfer.files;
-        const files = await getDroppedFiles(ev);
+        const files = ev.dataTransfer.files;
+        const items = await getDroppedFiles(ev);
+        console.log(files);
+        console.log(items);
+        const uniqueMap = new Map([...files, ...items].map(item => [item.name, item]));
+
+        // 2. Map の中身を取り出して、新しい配列に戻します
+        const targets = Array.from(uniqueMap.values());
         if (files && files.length > 0) {
-            openPreview(files);
+            openPreview(targets);
         }
+        /*
+        showBrowserFileListDialog({
+            files: targets,
+            initialPath: "/",
+            title: ""
+        })
+        */
     };
 
     const onDragOver = async (ev: React.DragEvent) => {
