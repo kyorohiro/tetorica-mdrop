@@ -85,7 +85,8 @@ function PortableApp() {
         ev.preventDefault();
     }
     return (
-        <main ref={mainRef} onDrop={onDrop} onDragOver={onDragOver} className="h-screen overflow-y-auto bg-slate-950 text-slate-100">
+        <main ref={mainRef} onDrop={onDrop} onDragOver={onDragOver} 
+        className="min-h-screen overflow-y-auto bg-slate-950 text-slate-100">
             <div className="mx-auto max-w-3xl px-6 py-8">
                 <header className="mb-8">
                     <p className="text-sm text-slate-400"></p>
