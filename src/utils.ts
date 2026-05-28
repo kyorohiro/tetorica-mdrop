@@ -3,25 +3,25 @@ export const sleep = (ms: number): Promise<void> => {
 };
 
 export const supportedExtensions = [
-  // Images
-  "png", "jpg", "jpeg", "webp", "gif", "svg", "avif",
+    // Images
+    "png", "jpg", "jpeg", "webp", "gif", "svg", "avif",
 
-  // Videos
-  "mp4", "m4v", "webm", "ogv", "mov",
+    // Videos
+    "mp4", "m4v", "webm", "ogv", "mov",
 
-  // Audio
-  "mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "opus",
+    // Audio
+    "mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "opus",
 
-  // Documents
-  "pdf", "epub",
+    // Documents
+    "pdf", "epub",
 
-  // Archives / Comic
-  "zip", "cbz",
+    // Archives / Comic
+    "zip", "cbz",
 
-  // Text / Code
-  "txt", "md", "markdown", "json", "html", "css", "js", "jsx",
-  "ts", "tsx", "xml", "rs", "toml", "yaml", "yml", "sql",
-  "sh", "py", "java", "c", "cpp", "h",
+    // Text / Code
+    "txt", "md", "markdown", "json", "html", "css", "js", "jsx",
+    "ts", "tsx", "xml", "rs", "toml", "yaml", "yml", "sql",
+    "sh", "py", "java", "c", "cpp", "h",
 ];
 export const mimeFromPath = (path: string): string => {
     const lower = path.toLowerCase();
@@ -82,7 +82,7 @@ export const isEpub = (path: string) =>
 
 //export const isZipLike = (path: string) => /\.(zip|cbz)$/i.test(path);
 export const isArchive = (path: string) =>
-  /\.(zip|cbz|rar|cbr)$/i.test(path);
+    /\.(zip|cbz|rar|cbr)$/i.test(path);
 
 export const isCover = (path: string) => {
     const name = path.replace(/.*\//, "");
@@ -91,16 +91,96 @@ export const isCover = (path: string) => {
 
 
 export async function makeBlobFromUrl(url: string) {
-  try {
-    // データを取ってくる
-    const response = await fetch(url);
-    
-    // Blobに変換する
-    const blob = await response.blob();
-    
-    return blob;
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+    try {
+        // データを取ってくる
+        const response = await fetch(url);
+
+        // Blobに変換する
+        const blob = await response.blob();
+
+        return blob;
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
+
+
+export type FileWithRelativePath = File & { webkitRelativePath?: string };
+
+export async function getDroppedFiles(
+    ev: React.DragEvent
+): Promise<FileWithRelativePath[]> {
+    const files: FileWithRelativePath[] = [];
+
+    async function readEntry(entry: any, prefix = ""): Promise<void> {
+        if (entry.isFile) {
+            await new Promise<void>((resolve, reject) => {
+                entry.file((file: File) => {
+                    const relativePath = `${prefix}${file.name}`;
+
+                    Object.defineProperty(file, "webkitRelativePath", {
+                        value: relativePath,
+                        configurable: true,
+                    });
+
+                    files.push(file as FileWithRelativePath);
+                    resolve();
+                }, reject);
+            });
+            return;
+        }
+
+        if (entry.isDirectory) {
+            const dirPrefix = `${prefix}${entry.name}/`;
+            const reader = entry.createReader();
+
+            while (true) {
+                const entries: any[] = await new Promise((resolve, reject) => {
+                    reader.readEntries(resolve, reject);
+                });
+
+                if (entries.length === 0) break;
+
+                for (const child of entries) {
+                    await readEntry(child, dirPrefix);
+                }
+            }
+        }
+    }
+
+    const items = Array.from(ev.dataTransfer.items ?? []);
+
+    // await 前に entry / file を確保しておく
+    const entriesOrFiles = items
+        .map((item) => {
+            const entry = (item as any).webkitGetAsEntry?.();
+            if (entry) {
+                return { type: "entry" as const, entry };
+            }
+
+            const file = item.getAsFile?.();
+            if (file) {
+                return { type: "file" as const, file };
+            }
+
+            return null;
+        })
+        .filter(Boolean);
+
+    for (const item of entriesOrFiles) {
+        if (!item) continue;
+
+        if (item.type === "entry") {
+            try {
+                await readEntry(item.entry, "");
+            } catch (e) {
+                console.error("readEntry failed:", item.entry?.name, e);
+            }
+        } else {
+            files.push(item.file as FileWithRelativePath);
+        }
+    }
+
+    return files;
 }

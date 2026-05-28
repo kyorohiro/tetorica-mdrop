@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import "../App.css";
 import { FileTargetFile } from "../web/api";
 //import { usePreviewDialog } from "../web/usePreviewDialog";
-import { supportedExtensions } from "../utils";
+import { getDroppedFiles, supportedExtensions } from "../utils";
 import { useBrowserFileListDialog } from "../web/useBrowserFileListDialog";
 
 
@@ -83,87 +83,6 @@ function PortableApp() {
         folderInputRef.current?.click();
     }
     //
-    //
-    //
-
-    type FileWithRelativePath = File & { webkitRelativePath?: string };
-
-    async function getDroppedFiles(
-        ev: React.DragEvent
-    ): Promise<FileWithRelativePath[]> {
-        const files: FileWithRelativePath[] = [];
-
-        async function readEntry(entry: any, prefix = ""): Promise<void> {
-            if (entry.isFile) {
-                await new Promise<void>((resolve, reject) => {
-                    entry.file((file: File) => {
-                        const relativePath = `${prefix}${file.name}`;
-
-                        Object.defineProperty(file, "webkitRelativePath", {
-                            value: relativePath,
-                            configurable: true,
-                        });
-
-                        files.push(file as FileWithRelativePath);
-                        resolve();
-                    }, reject);
-                });
-                return;
-            }
-
-            if (entry.isDirectory) {
-                const dirPrefix = `${prefix}${entry.name}/`;
-                const reader = entry.createReader();
-
-                while (true) {
-                    const entries: any[] = await new Promise((resolve, reject) => {
-                        reader.readEntries(resolve, reject);
-                    });
-
-                    if (entries.length === 0) break;
-
-                    for (const child of entries) {
-                        await readEntry(child, dirPrefix);
-                    }
-                }
-            }
-        }
-
-        const items = Array.from(ev.dataTransfer.items ?? []);
-
-        // await 前に entry / file を確保しておく
-        const entriesOrFiles = items
-            .map((item) => {
-                const entry = (item as any).webkitGetAsEntry?.();
-                if (entry) {
-                    return { type: "entry" as const, entry };
-                }
-
-                const file = item.getAsFile?.();
-                if (file) {
-                    return { type: "file" as const, file };
-                }
-
-                return null;
-            })
-            .filter(Boolean);
-
-        for (const item of entriesOrFiles) {
-            if (!item) continue;
-
-            if (item.type === "entry") {
-                try {
-                    await readEntry(item.entry, "");
-                } catch (e) {
-                    console.error("readEntry failed:", item.entry?.name, e);
-                }
-            } else {
-                files.push(item.file as FileWithRelativePath);
-            }
-        }
-
-        return files;
-    }
     //
     const onDrop = async (ev: React.DragEvent) => {
         ev.preventDefault();
