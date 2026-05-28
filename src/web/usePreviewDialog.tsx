@@ -11,6 +11,7 @@ type PreviewDialogOptions = {
     apiServer?: string;
     getObjectUrl?: (file: TargetFile, onProgress?: (loaded: number, total: number) => void) => Promise<string>;
     download?: (file: TargetFile, onProgress?: (loaded: number, total: number) => void) => Promise<void>;
+    isClose?: boolean,
 };
 
 export const downloadUrl = (apiServer: string, file: TargetFile): string => {
@@ -36,7 +37,7 @@ export function usePreviewDialog() {
     const showPreviewDialog = React.useCallback(
         async (opts: PreviewDialogOptions) => {
             return await showDialog<void>(({ close }) => (
-                <PreviewDialog {...opts} onClose={close} />
+                <PreviewDialog {...opts} onClose={opts.isClose!=false?close:undefined} />
             ));
         },
         [showDialog]
@@ -52,7 +53,7 @@ function PreviewDialog({
     getObjectUrl,
     download,
     onClose,
-}: PreviewDialogOptions & { onClose: () => void }) {
+}: PreviewDialogOptions & { onClose?: () => void }) {
     const [index, setIndex] = React.useState(initialIndex);
     const [src, setSrc] = React.useState("");
     const [text, setText] = React.useState("");
@@ -130,7 +131,7 @@ function PreviewDialog({
 
     React.useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose();
+            if (e.key === "Escape") onClose ? onClose() : ()=>{};
             if (e.key === "ArrowDown" || e.key === "ArrowRight") move(1);
             if (e.key === "ArrowUp" || e.key === "ArrowLeft") move(-1);
         };
@@ -171,13 +172,15 @@ function PreviewDialog({
                         Download
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
-                    >
-                        Close
-                    </button>
+                    {onClose &&
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                        >
+                            Close
+                        </button>
+                    }
                 </div>
             </div>
             <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
@@ -238,11 +241,11 @@ function PreviewDialog({
                             async () => {
                                 const f = await getUrlFromTargetFile(file);
                                 showZipFileListDialog({
-                                    initialPath:"/",
+                                    initialPath: "/",
                                     title: file.path,
                                     source: {
                                         type: "blob",
-                                        blob: await  makeBlobFromUrl(f)
+                                        blob: await makeBlobFromUrl(f)
                                     }
                                 })
                             }

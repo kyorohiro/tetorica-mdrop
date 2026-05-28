@@ -3,6 +3,7 @@ declare global {
     __MDROP_CONFIG__?: {
       apiKey?: string;
       apiServer?: string;
+      initData?: string;
     };
   }
 }

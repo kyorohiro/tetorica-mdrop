@@ -1,16 +1,15 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../App.css";
-import { FileTargetFile } from "../web/api";
-//import { usePreviewDialog } from "../web/usePreviewDialog";
+import { FileTargetFile, TargetFile } from "../web/api";
+import { usePreviewDialog } from "../web/usePreviewDialog";
 import { getDroppedFiles, supportedExtensions } from "../utils";
 import { useBrowserFileListDialog } from "../web/useBrowserFileListDialog";
-
 
 function PortableApp() {
     const [errorMsg,] = useState<string>("");
     //const [, setLoading] = useState(false);
     const mainRef = useRef<HTMLElement>(null);
-    //const { showPreviewDialog } = usePreviewDialog();
+    const { showPreviewDialog } = usePreviewDialog();
     const { showBrowserFileListDialog } = useBrowserFileListDialog();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
@@ -106,6 +105,43 @@ function PortableApp() {
     const onDragOver = async (ev: React.DragEvent) => {
         ev.preventDefault();
     }
+    useEffect(() => {
+        if (window.__MDROP_CONFIG__?.initData == "INIT_DATA_ON") {
+            showPreviewDialog({
+                files: [{
+                    id: "",
+                    isDir: false,
+                    isFile: true,
+                    path: "data.zip",
+                    size: 0,
+                    createdAt: undefined,
+                    modifiedAt: undefined,
+                }],
+                initialIndex: 0,
+                apiServer: ".",
+                getObjectUrl: async (file: TargetFile): Promise<string> => {
+                    console.log(">> url", file)
+                    return location.origin + location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1) + "data.zip";
+                },
+                download: async (file: TargetFile): Promise<void> => {
+                    let url: string | undefined;
+                    try {
+                        url = URL.createObjectURL((file as FileTargetFile).entry!);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = file.path.replace(/.*\//, "");
+                        a.target = "_blank";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    } finally {
+                        if (url) URL.revokeObjectURL(url);
+                    }
+                },
+                isClose: false,
+            });
+        }
+    }, []);
     return (
         <main ref={mainRef} onDrop={onDrop} onDragOver={onDragOver}
             className="min-h-screen overflow-y-auto bg-slate-950 text-slate-100">

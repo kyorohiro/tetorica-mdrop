@@ -194,9 +194,11 @@ function BrowserFileListDialog({
   };
 
   const onClone = async () => {
-    let zip = await buildPortablePackage(allFiles,await getPortableHtmlText(), await getUnrarWasm() );
-    const url = URL.createObjectURL(zip);
+    let url;
     try {
+      setLoading(true);
+      let zip = await buildPortablePackage(allFiles, await getPortableHtmlText(), await getUnrarWasm());
+      url = URL.createObjectURL(zip);
       const a = document.createElement("a");
       a.href = url;
       a.download = `mdrop_clone_${Date.now}.zip`;
@@ -205,7 +207,10 @@ function BrowserFileListDialog({
       a.click();
       document.body.removeChild(a);
     } finally {
-      URL.revokeObjectURL(url);
+      setLoading(false);
+      if (url) {
+        URL.revokeObjectURL(url);
+      }
     }
   }
   return (
