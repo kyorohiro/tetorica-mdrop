@@ -201,8 +201,8 @@ function BrowserFileListDialog({
       url = URL.createObjectURL(zip);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `mdrop_clone_${Date.now}.zip`;
-      a.target = "_blank";
+      a.download = `mdrop_clone_${Date.now()}.zip`;
+      //a.target = "_blank";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
