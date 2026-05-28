@@ -5,6 +5,7 @@ import { TargetFile, FileTargetFile } from "./api";
 import { usePreviewDialog } from "./usePreviewDialog";
 import { isAudio, isEpub, isImage, isPdf, isText, isVideo } from "../utils";
 import { useZipFileListDialog } from "./useZipFileListDialog";
+import { buildPortablePackage, getPortableHtmlText, getUnrarWasm } from "./buildPortablePackage";
 
 type SortMode = "name" | "modifiedAt" | "comic";
 
@@ -192,6 +193,21 @@ function BrowserFileListDialog({
     }
   };
 
+  const onClone = async () => {
+    let zip = await buildPortablePackage(allFiles,await getPortableHtmlText(), await getUnrarWasm() );
+    const url = URL.createObjectURL(zip);
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mdrop_clone_${Date.now}.zip`;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
   return (
     <div className="flex h-[calc(100vh-2rem)] w-[min(96vw,900px)] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-slate-100 shadow-xl">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
@@ -200,6 +216,13 @@ function BrowserFileListDialog({
           <div className="break-all text-xs text-slate-400">{path}</div>
         </div>
 
+        <button
+          type="button"
+          onClick={onClone}
+          className="rounded-lg border border-rose-600 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+        >
+          Clone
+        </button>
         <button
           type="button"
           onClick={onClose}

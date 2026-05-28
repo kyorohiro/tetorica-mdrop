@@ -11,6 +11,16 @@ type FileTargetFile = {
   entry?: File;
 };
 
+export async function getPortableHtmlText() {
+    let respPortable = await fetch("./portable.html");
+    return await respPortable.text();
+}
+
+export async function getUnrarWasm() {
+    let respPortable = await fetch("./unrar.wasm");
+    return await respPortable.blob()
+}
+
 export async function buildPortablePackage(
   allFiles: FileTargetFile[],
   portableHtmlText: string,
