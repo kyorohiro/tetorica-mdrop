@@ -73,89 +73,62 @@ function PortableApp() {
     async function selectFolders() {
         folderInputRef.current?.click();
     }
-//
-//
-//
+    //
+    //
+    //
 
-type FileWithRelativePath = File & { webkitRelativePath?: string };
+    type FileWithRelativePath = File & { webkitRelativePath?: string };
 
-async function getDroppedFiles(ev: React.DragEvent): Promise<FileWithRelativePath[]> {
-  const items = Array.from(ev.dataTransfer.items ?? []);
-  const files: FileWithRelativePath[] = [];
+    async function getDroppedFiles(ev: React.DragEvent): Promise<FileWithRelativePath[]> {
+        const items = Array.from(ev.dataTransfer.items ?? []);
+        const files: FileWithRelativePath[] = [];
 
-  async function readEntry(entry: any, prefix = ""): Promise<void> {
-    if (entry.isFile) {
-      await new Promise<void>((resolve, reject) => {
-        entry.file((file: FileWithRelativePath) => {
-          Object.defineProperty(file, "webkitRelativePath", {
-            value: `${prefix}${file.name}`,
-            configurable: true,
-          });
-          files.push(file);
-          resolve();
-        }, reject);
-      });
-      return;
-    }
+        async function readEntry(entry: any, prefix = ""): Promise<void> {
+            if (entry.isFile) {
+                await new Promise<void>((resolve, reject) => {
+                    entry.file((file: FileWithRelativePath) => {
+                        Object.defineProperty(file, "webkitRelativePath", {
+                            value: `${prefix}${file.name}`,
+                            configurable: true,
+                        });
+                        files.push(file);
+                        resolve();
+                    }, reject);
+                });
+                return;
+            }
 
-    if (entry.isDirectory) {
-      const reader = entry.createReader();
+            if (entry.isDirectory) {
+                const reader = entry.createReader();
 
-      // readEntries は一度で全部返らないことがある
-      while (true) {
-        const entries: any[] = await new Promise((resolve, reject) => {
-          reader.readEntries(resolve, reject);
-        });
+                // readEntries は一度で全部返らないことがある
+                while (true) {
+                    const entries: any[] = await new Promise((resolve, reject) => {
+                        reader.readEntries(resolve, reject);
+                    });
 
-        if (entries.length === 0) break;
+                    if (entries.length === 0) break;
 
-        for (const child of entries) {
-          await readEntry(child, `${prefix}${entry.name}/`);
-        }
-      }
-    }
-  }
-
-  for (const item of items) {
-    const entry = (item as any).webkitGetAsEntry?.();
-    if (entry) {
-      await readEntry(entry, "");
-    } else {
-      const file = item.getAsFile?.();
-      if (file) files.push(file as FileWithRelativePath);
-    }
-  }
-
-  return files;
-}
-//
-//
-//
-    const onDrop2 = async (ev: React.DragEvent) => {
-        ev.preventDefault();
-
-        console.log("FILES");
-        console.log(ev.dataTransfer.files);
-
-        console.log("ITEMS");
-        console.log(ev.dataTransfer.items);
-
-        for (const item of ev.dataTransfer.items) {
-            console.log("kind", item.kind);
-            console.log("type", item.type);
-
-            // Chrome系
-            const entry = (item as any).webkitGetAsEntry?.();
-
-            console.log("entry", entry);
-
-            if (entry) {
-                console.log("isFile", entry.isFile);
-                console.log("isDirectory", entry.isDirectory);
-                console.log("name", entry.name);
+                    for (const child of entries) {
+                        await readEntry(child, `${prefix}${entry.name}/`);
+                    }
+                }
             }
         }
-    };
+
+        for (const item of items) {
+            const entry = (item as any).webkitGetAsEntry?.();
+            if (entry) {
+                await readEntry(entry, "");
+            } else {
+                const file = item.getAsFile?.();
+                if (file) files.push(file as FileWithRelativePath);
+            }
+        }
+
+        return files;
+    }
+    //
 
     const onDrop = async (ev: React.DragEvent) => {
         ev.preventDefault();
