@@ -292,3 +292,12 @@ DATE: ---Sun 26 Apr 2026---
  path=/
  ```
 
+
+# For github and itch
+
+```
+npm run build:portable
+cd dist-portable
+cp portable.html index.html
+zip -r ../web-build_0.5.7_gh.zip .
+```
