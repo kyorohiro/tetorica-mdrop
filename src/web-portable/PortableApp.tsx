@@ -1,16 +1,16 @@
 import { useRef, useState } from "react";
 import "../App.css";
-import { TargetFile, FileTargetFile } from "../web/api";
-import { usePreviewDialog } from "../web/usePreviewDialog";
+import { FileTargetFile } from "../web/api";
+//import { usePreviewDialog } from "../web/usePreviewDialog";
 import { supportedExtensions } from "../utils";
 import { useBrowserFileListDialog } from "../web/useBrowserFileListDialog";
 
 
 function PortableApp() {
     const [errorMsg,] = useState<string>("");
-    const [, setLoading] = useState(false);
+    //const [, setLoading] = useState(false);
     const mainRef = useRef<HTMLElement>(null);
-    const { showPreviewDialog } = usePreviewDialog();
+    //const { showPreviewDialog } = usePreviewDialog();
     const { showBrowserFileListDialog } = useBrowserFileListDialog();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
