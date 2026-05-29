@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
 import { PreviewPage } from "./preview/PreviewPage";
+import { preivewGlobalSetting } from "./preview/preivewSetting";
 
 type PreviewDialogOptions = {
     files: TargetFile[];
@@ -146,21 +147,23 @@ function PreviewDialog({
                 </div>
 
                 <div className="flex shrink-0 gap-2">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const link = document.createElement("a");
-                            link.href = downloadUrl(apiServer, file);
-                            link.target = "_blank";
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                        }}
-                        className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
-                    >
-                        Open
-                    </button>
-
+                    {
+                    (!!preivewGlobalSetting.isOpen) &&
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const link = document.createElement("a");
+                                link.href = downloadUrl(apiServer, file);
+                                link.target = "_blank";
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }}
+                            className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                        >
+                            Open
+                        </button>
+                    }
                     <button
                         type="button"
                         onClick={async () => {

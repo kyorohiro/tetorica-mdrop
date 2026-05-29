@@ -4,6 +4,7 @@ import { FileTargetFile, TargetFile } from "../web/api";
 import { usePreviewDialog } from "../web/usePreviewDialog";
 import { getDroppedFiles, supportedExtensions } from "../utils";
 import { useBrowserFileListDialog } from "../web/useBrowserFileListDialog";
+import { preivewGlobalSetting } from "../web/preview/preivewSetting";
 
 function PortableApp() {
     const [errorMsg,] = useState<string>("");
@@ -105,7 +106,10 @@ function PortableApp() {
     const onDragOver = async (ev: React.DragEvent) => {
         ev.preventDefault();
     }
+    // initialize
     useEffect(() => {
+        //
+        preivewGlobalSetting.isOpen = false;
         if (window.__MDROP_CONFIG__?.initData == "INIT_DATA_ON") {
             showPreviewDialog({
                 files: [{
