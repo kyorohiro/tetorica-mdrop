@@ -198,6 +198,7 @@ function BrowserFileListDialog({
     let url;
     try {
       setLoading(true);
+      console.log(">> clone")
       const r = await showConfirmDialog({
         title: "Create Portable Clone",
         body: (

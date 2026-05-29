@@ -11,6 +11,57 @@ type FileTargetFile = {
   entry?: File;
 };
 
+//
+//
+function isCoverImagePath(path: string): boolean {
+  const p = path.toLowerCase();
+
+  if (!/\.(jpg|jpeg|png|webp|gif)$/.test(p)) {
+    return false;
+  }
+
+  const name = p.split("/").pop() ?? "";
+
+  return (
+    name === "cover.jpg" ||
+    name === "cover.jpeg" ||
+    name === "cover.png" ||
+    name === "cover.webp" ||
+    name.startsWith("cover.") ||
+    name.includes("cover") ||
+    name.includes("表紙")
+  );
+}
+
+function isImagePath(path: string): boolean {
+  return /\.(jpg|jpeg|png|webp|gif)$/.test(path.toLowerCase());
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function findCoverDataUrl(allFiles: FileTargetFile[]): Promise<string> {
+  console.log(">> fcover")
+  const files = allFiles.filter((f) => f.entry && isImagePath(f.path));
+
+  const cover =
+    files.find((f) => isCoverImagePath(f.path)) ??
+    files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }))[0];
+
+  if (!cover?.entry) {
+    return "";
+  }
+
+  return await blobToDataUrl(cover.entry);
+}
+
+//
 export async function getPortableHtmlText() {
   let respPortable = await fetch("./portable.html");
   return await respPortable.text();
@@ -60,10 +111,12 @@ export async function buildPortablePackage(
   //
   // 2. create index.html
   //
-  const indexHtml = portableHtmlText.replace(
-    "INIT_DATA_OFF",
-    "INIT_DATA_ON"
-  );
+const coverData = await findCoverDataUrl(allFiles);
+
+const indexHtml = portableHtmlText
+  .replace("INIT_DATA_OFF", "INIT_DATA_ON")
+  .replace('coverData: ""', `coverData: ${JSON.stringify(coverData)}`);
+
 
   //
   // 3. create release.zip
