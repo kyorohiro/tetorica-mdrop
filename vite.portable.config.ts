@@ -9,6 +9,10 @@ export default defineConfig({
   base: "./",
   publicDir: "public_portable",
   plugins: [react(), tailwindcss(), viteSingleFile()],
+  server: {
+    host: "0.0.0.0",
+    port: 5173,
+  },
   build: {
     outDir: "dist-portable",
     rollupOptions: {

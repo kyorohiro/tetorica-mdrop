@@ -38,31 +38,49 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({
 
             {/* 一番上だけ表示するスタック方式 */}
             {
-            //stack.length > 0 && (
-            //    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4">
-            //        <div className="flex min-h-full items-center justify-center">
-            //            {stack[stack.length - 1]?.node}
-            //        </div>
-            //    </div>
-            //)
-            }
-            {stack.map((item, index) => {
-                const isTop = index === stack.length - 1;
-                return (
-                    <div
-                        key={item.id}
-                        className={[
-                            "fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4",
-                            isTop ? "block" : "hidden",
-                        ].join(" ")}
-                    >
-                        <div className="flex min-h-full items-center justify-center">
-                            {item.node}
-                        </div>
-                    </div>
-                );
+                //stack.length > 0 && (
+                //    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4">
+                //        <div className="flex min-h-full items-center justify-center">
+                //            {stack[stack.length - 1]?.node}
+                //        </div>
+                //    </div>
+                //)
 
-            })}
+                //{stack.map((item, index) => {
+                //    const isTop = index === stack.length - 1;
+                //    return (
+                //        <div
+                //            key={item.id}
+                //            className={[
+                //                "fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4",
+                //                isTop ? "block" : "hidden",
+                //            ].join(" ")}
+                //        >
+                //            <div className="flex min-h-full items-center justify-center">
+                //                {item.node}
+                //            </div>
+                //        </div>
+                //    );
+                //})}
+            }
+            {
+                stack.map((item, index) => {
+                    const isTop = index === stack.length - 1;
+                    return (
+                        <div
+                            key={item.id}
+                            className={[
+                                "fixed inset-0 z-50 overflow-hidden bg-black/60 p-0 sm:p-4",
+                                isTop ? "block" : "hidden",
+                            ].join(" ")}
+                        >
+                            <div className="flex h-full min-h-0 items-center justify-center">
+                                {item.node}
+                            </div>
+                        </div>
+                    );
+                })
+            }
         </DialogContext.Provider>
     );
 };

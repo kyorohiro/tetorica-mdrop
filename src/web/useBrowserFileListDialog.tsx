@@ -220,7 +220,7 @@ function BrowserFileListDialog({
     }
   }
   return (
-    <div className="flex h-[calc(100vh-2rem)] w-[min(96vw,900px)] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-slate-100 shadow-xl">
+  <div className="flex h-[100dvh] w-[100dvw] flex-col overflow-hidden bg-slate-950 sm:h-[calc(100dvh-2rem)] sm:w-[calc(100dvw-2rem)] sm:rounded-2xl sm:border sm:border-slate-700 sm:shadow-xl">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
         <div className="min-w-0">
           <h2 className="truncate text-lg font-semibold">{title ?? "Files"}</h2>

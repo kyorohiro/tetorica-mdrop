@@ -160,7 +160,11 @@ function PreviewDialog({
     if (!file) return null;
 
     return (
-        <div className="flex h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-xl">
+        <div className="flex h-[100dvh] w-[100dvw] flex-col overflow-hidden bg-slate-950 sm:h-[calc(100dvh-2rem)] sm:w-[calc(100dvw-2rem)] sm:rounded-2xl sm:border sm:border-slate-700 sm:shadow-xl">     {
+            //         <div className="flex h-[100dvh] w-[100dvw] flex-col overflow-hidden bg-slate-950 sm:h-[calc(100dvh-2rem)] sm:w-[calc(100dvw-2rem)] sm:rounded-2xl sm:border sm:border-slate-700">
+
+        //<div className="flex h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-xl">
+        }
             <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-2 text-slate-100">
                 <div className="min-w-0 truncate text-sm">
                     {index + 1} / {files.length} {file.path} : {loadingMessage}
