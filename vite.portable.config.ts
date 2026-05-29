@@ -7,6 +7,7 @@ import { resolve } from "node:path";
 
 export default defineConfig({
   base: "./",
+  publicDir: "public_portable",
   plugins: [react(), tailwindcss(), viteSingleFile()],
   build: {
     outDir: "dist-portable",
