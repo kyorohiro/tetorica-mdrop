@@ -5,7 +5,7 @@ import { TargetFile, FileTargetFile } from "./api";
 import { usePreviewDialog } from "./usePreviewDialog";
 import { isAudio, isEpub, isImage, isPdf, isText, isVideo } from "../utils";
 import { useZipFileListDialog } from "./useZipFileListDialog";
-import { buildPortablePackage, getPortableHtmlText, getUnrarWasm } from "./buildPortablePackage";
+import { buildPortablePackage, getPortableHtmlText, getReadmeEn, getReadmeJp, getUnrarWasm } from "./buildPortablePackage";
 
 type SortMode = "name" | "modifiedAt" | "comic";
 
@@ -197,7 +197,13 @@ function BrowserFileListDialog({
     let url;
     try {
       setLoading(true);
-      let zip = await buildPortablePackage(allFiles, await getPortableHtmlText(), await getUnrarWasm());
+      let zip = await buildPortablePackage(//
+        allFiles,
+        await getPortableHtmlText(),
+        await getUnrarWasm(),
+        await getReadmeEn(),
+        await getReadmeJp()
+      );
       url = URL.createObjectURL(zip);
       const a = document.createElement("a");
       a.href = url;

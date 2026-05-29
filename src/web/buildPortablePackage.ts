@@ -12,19 +12,31 @@ type FileTargetFile = {
 };
 
 export async function getPortableHtmlText() {
-    let respPortable = await fetch("./portable.html");
-    return await respPortable.text();
+  let respPortable = await fetch("./portable.html");
+  return await respPortable.text();
 }
 
 export async function getUnrarWasm() {
-    let respPortable = await fetch("./unrar.wasm");
-    return await respPortable.blob()
+  let respPortable = await fetch("./unrar.wasm");
+  return await respPortable.blob()
+}
+
+export async function getReadmeEn() {
+  let respPortable = await fetch("./ReadMe_en.txt");
+  return await respPortable.text();
+}
+
+export async function getReadmeJp() {
+  let respPortable = await fetch("./ReadMe_jp.txt");
+  return await respPortable.text();
 }
 
 export async function buildPortablePackage(
   allFiles: FileTargetFile[],
   portableHtmlText: string,
-  unrarWasmBlob: Blob
+  unrarWasmBlob: Blob,
+  readmeEn: string,
+  readmeJp: string,
 ): Promise<Blob> {
 
   //
@@ -60,6 +72,14 @@ export async function buildPortablePackage(
     new BlobWriter("application/zip")
   );
 
+  await releaseZipWriter.add(
+    "ReadMe_en.txt",
+    new TextReader(readmeEn)
+  );
+  await releaseZipWriter.add(
+    "ReadMe_jp.txt",
+    new TextReader(readmeJp)
+  );
   //
   // add index.html
   //
