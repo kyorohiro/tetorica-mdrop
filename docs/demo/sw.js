@@ -1,4 +1,4 @@
-const APP_VERSION = "0.6.1";
+const APP_VERSION = "0.6.2";
 const CACHE_PREFIX = "tetorica-mdrop-";
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 
