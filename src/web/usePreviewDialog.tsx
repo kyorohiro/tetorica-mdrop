@@ -153,6 +153,20 @@ function PreviewDialog({
                     <button
                         type="button"
                         onClick={async () => {
+                            const link = document.createElement("a");
+                            link.href = downloadUrl(apiServer, file);
+                            link.target = "_blank"; // 新しいタブで開く指定
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                        }}
+                        className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                    >
+                        Open
+                    </button>
+                    <button
+                        type="button"
+                        onClick={async () => {
                             if (download) {
                                 await download(file, (loaded, total) => {
                                     setLoadingMessage(`${loaded}/${total}`)

@@ -4614,7 +4614,7 @@ dependencies = [
 
 [[package]]
 name = "tetorica-mdrop"
-version = "0.5.11"
+version = "0.5.12"
 dependencies = [
  "axum",
  "axum-server",
@@ -4640,7 +4640,7 @@ dependencies = [
 
 [[package]]
 name = "tetorica-mdrop-cli"
-version = "0.5.11"
+version = "0.5.12"
 dependencies = [
  "clap",
  "serde",
