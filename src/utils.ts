@@ -1,10 +1,14 @@
+import heic2any from "heic2any";
+
 export const sleep = (ms: number): Promise<void> => {
     return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 export const supportedExtensions = [
     // Images
-    "png", "jpg", "jpeg", "webp", "gif", "svg", "avif",
+    "png", "jpg", "jpeg", "webp", "gif", "svg", "avif", 
+    //
+    "heic", "heif",
 
     // Videos
     "mp4", "m4v", "webm", "ogv", "mov",
@@ -32,6 +36,9 @@ export const mimeFromPath = (path: string): string => {
     if (/\.(gif)$/i.test(lower)) return "image/gif";
     if (/\.(svg)$/i.test(lower)) return "image/svg+xml";
     if (/\.(avif)$/i.test(lower)) return "image/avif";
+    //
+    if (/\.(heic)$/i.test(lower)) return "image/heic";
+    if (/\.(heif)$/i.test(lower)) return "image/heif";
 
     if (/\.(mp4|m4v)$/i.test(lower)) return "video/mp4";
     if (/\.(webm)$/i.test(lower)) return "video/webm";
@@ -63,6 +70,16 @@ export const mimeFromPath = (path: string): string => {
 
 export const isImage = (path: string) =>
     mimeFromPath(path).startsWith("image/");
+
+export function isHeic(path: string, type?: string) {
+  const p = path.toLowerCase();
+  return (
+    p.endsWith(".heic") ||
+    p.endsWith(".heif") ||
+    type === "image/heic" ||
+    type === "image/heif"
+  );
+}
 
 export const isVideo = (path: string) =>
     mimeFromPath(path).startsWith("video/");
@@ -183,4 +200,15 @@ export async function getDroppedFiles(
     }
 
     return files;
+}
+
+export async function heicToObjectUrl(file: Blob) {
+  const converted = await heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality: 0.9,
+  });
+
+  const blob = Array.isArray(converted) ? converted[0] : converted;
+  return URL.createObjectURL(blob);
 }

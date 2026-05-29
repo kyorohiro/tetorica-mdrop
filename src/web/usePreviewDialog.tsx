@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
 import { ReactReader } from "react-reader";
-import { isAudio, isImage, isPdf, isText, isVideo, isEpub, isArchive, makeBlobFromUrl } from "../utils";
+import { isAudio, isImage, isPdf, isText, isVideo, isEpub, isArchive, makeBlobFromUrl, isHeic, heicToObjectUrl } from "../utils";
 import { useZipFileListDialog } from "./useZipFileListDialog";
 
 type PreviewDialogOptions = {
@@ -37,7 +37,7 @@ export function usePreviewDialog() {
     const showPreviewDialog = React.useCallback(
         async (opts: PreviewDialogOptions) => {
             return await showDialog<void>(({ close }) => (
-                <PreviewDialog {...opts} onClose={opts.isClose!=false?close:undefined} />
+                <PreviewDialog {...opts} onClose={opts.isClose != false ? close : undefined} />
             ));
         },
         [showDialog]
@@ -85,53 +85,70 @@ function PreviewDialog({
         if (!file) return;
 
         let alive = true;
-        let objectUrl: string | null = null;
+        const objectUrls: string[] = [];
+
+        const addObjectUrl = (url: string) => {
+            if (url.startsWith("blob:")) {
+                objectUrls.push(url);
+            }
+        };
 
         const run = async () => {
             setSrc("");
             setText("");
-            setLoadingMessage(``)
-            const nextSrc = await getUrlFromTargetFile(file);
-            console.log(">> nextSrc", nextSrc)
+            setLoadingMessage("");
 
-            if (!alive) {
-                if (nextSrc.startsWith("blob:")) {
-                    URL.revokeObjectURL(nextSrc);
-                }
-                return;
-            }
+            const nextSrc = await getUrlFromTargetFile(file);
+            console.log(">> nextSrc", nextSrc);
+
+            addObjectUrl(nextSrc);
+
+            if (!alive) return;
+
             if (isText(file.path)) {
-                console.log(">text")
+                console.log(">text");
+
                 const resp = await fetch(nextSrc);
                 const nextText = await resp.text();
+
                 if (!alive) return;
+
                 setText(nextText);
-                if (nextSrc.startsWith("blob:")) {
-                    objectUrl = nextSrc;
-                }
                 return;
-            } else {
-                console.log(">eles")
-                if (nextSrc.startsWith("blob:")) {
-                    objectUrl = nextSrc;
-                }
-                setSrc(nextSrc);
             }
+
+            if (isHeic(file.path)) {
+                console.log(">heic");
+
+                const resp = await fetch(nextSrc);
+                const heicBlob = await resp.blob();
+                const convertedUrl = await heicToObjectUrl(heicBlob);
+
+                addObjectUrl(convertedUrl);
+
+                if (!alive) return;
+
+                setSrc(convertedUrl);
+                return;
+            }
+
+            console.log(">else");
+            setSrc(nextSrc);
         };
 
         run().catch(console.error);
 
         return () => {
             alive = false;
-            if (objectUrl) {
-                URL.revokeObjectURL(objectUrl);
+            for (const url of objectUrls) {
+                URL.revokeObjectURL(url);
             }
         };
     }, [file, apiServer, getObjectUrl]);
 
     React.useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose ? onClose() : ()=>{};
+            if (e.key === "Escape") onClose ? onClose() : () => { };
             if (e.key === "ArrowDown" || e.key === "ArrowRight") move(1);
             if (e.key === "ArrowUp" || e.key === "ArrowLeft") move(-1);
         };
