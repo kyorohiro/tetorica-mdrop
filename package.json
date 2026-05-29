@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:portable": "tsc && vite build --config vite.portable.config.ts",
-    "dev:portable": "vite --config vite.portable.config.ts",
+    "build:portable": "node scripts/build-sw.mjs && tsc && vite build --config vite.portable.config.ts",
+    "dev:portable": "node scripts/build-sw.mjs && vite --config vite.portable.config.ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev --features dev_web"

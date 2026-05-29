@@ -12,6 +12,12 @@
       initData: "INIT_DATA_OFF"
     };
   </script>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+  </script>
 </head>
 
 <body>
