@@ -1,21 +1,24 @@
 import React, { useState } from "react";
 import { useDialog } from "../useDialog";
 import type { TargetFile } from "./api";
-import { ReactReader } from "react-reader";
-import { isAudio, isImage, isPdf, isText, isVideo, isEpub, isArchive, makeBlobFromUrl, isHeic, heicToObjectUrl } from "../utils";
-import { useZipFileListDialog } from "./useZipFileListDialog";
+import { PreviewPage } from "./preview/PreviewPage";
 
 type PreviewDialogOptions = {
     files: TargetFile[];
     initialIndex: number;
     apiServer?: string;
-    getObjectUrl?: (file: TargetFile, onProgress?: (loaded: number, total: number) => void) => Promise<string>;
-    download?: (file: TargetFile, onProgress?: (loaded: number, total: number) => void) => Promise<void>;
-    isClose?: boolean,
+    getObjectUrl?: (
+        file: TargetFile,
+        onProgress?: (loaded: number, total: number) => void
+    ) => Promise<string>;
+    download?: (
+        file: TargetFile,
+        onProgress?: (loaded: number, total: number) => void
+    ) => Promise<void>;
+    isClose?: boolean;
 };
 
 export const downloadUrl = (apiServer: string, file: TargetFile): string => {
-    console.log(">dowbloadUrl")
     const encodePath = (path: string) =>
         path
             .split("/")
@@ -37,7 +40,10 @@ export function usePreviewDialog() {
     const showPreviewDialog = React.useCallback(
         async (opts: PreviewDialogOptions) => {
             return await showDialog<void>(({ close }) => (
-                <PreviewDialog {...opts} onClose={opts.isClose != false ? close : undefined} />
+                <PreviewDialog
+                    {...opts}
+                    onClose={opts.isClose !== false ? close : undefined}
+                />
             ));
         },
         [showDialog]
@@ -55,12 +61,7 @@ function PreviewDialog({
     onClose,
 }: PreviewDialogOptions & { onClose?: () => void }) {
     const [index, setIndex] = React.useState(initialIndex);
-    const [src, setSrc] = React.useState("");
-    const [text, setText] = React.useState("");
-    const [epubLocation, setEpubLocation] = React.useState<string | number>(0);
-    const renditionRef = React.useRef<any>(null);
     const [loadingMessage, setLoadingMessage] = useState("");
-    const { showZipFileListDialog } = useZipFileListDialog();
 
     const file = files[index];
 
@@ -73,84 +74,17 @@ function PreviewDialog({
         [files.length]
     );
 
-    const getUrlFromTargetFile = async (file: TargetFile) => {
-        const nextSrc = getObjectUrl
-            ? await getObjectUrl(file, (loaded, total) => {
-                setLoadingMessage(`${loaded}/${total}`)
-            })
-            : downloadUrl(apiServer, file);
-        return nextSrc;
-    }
-    React.useEffect(() => {
-        if (!file) return;
-
-        let alive = true;
-        const objectUrls: string[] = [];
-
-        const addObjectUrl = (url: string) => {
-            if (url.startsWith("blob:")) {
-                objectUrls.push(url);
-            }
-        };
-
-        const run = async () => {
-            setSrc("");
-            setText("");
-            setLoadingMessage("");
-
-            const nextSrc = await getUrlFromTargetFile(file);
-            console.log(">> nextSrc", nextSrc);
-
-            addObjectUrl(nextSrc);
-
-            if (!alive) return;
-
-            if (isText(file.path)) {
-                console.log(">text");
-
-                const resp = await fetch(nextSrc);
-                const nextText = await resp.text();
-
-                if (!alive) return;
-
-                setText(nextText);
-                return;
-            }
-
-            if (isHeic(file.path)) {
-                console.log(">heic");
-
-                const resp = await fetch(nextSrc);
-                const heicBlob = await resp.blob();
-                const convertedUrl = await heicToObjectUrl(heicBlob);
-
-                addObjectUrl(convertedUrl);
-
-                if (!alive) return;
-
-                setSrc(convertedUrl);
-                return;
-            }
-
-            console.log(">else");
-            setSrc(nextSrc);
-        };
-
-        run().catch(console.error);
-
-        return () => {
-            alive = false;
-            for (const url of objectUrls) {
-                URL.revokeObjectURL(url);
-            }
-        };
-    }, [file, apiServer, getObjectUrl]);
-
     React.useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose ? onClose() : () => { };
-            if (e.key === "ArrowDown" || e.key === "ArrowRight") move(1);
-            if (e.key === "ArrowUp" || e.key === "ArrowLeft") move(-1);
+            if (e.key === "Escape") {
+                onClose?.();
+            }
+            if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+                move(1);
+            }
+            if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+                move(-1);
+            }
         };
 
         window.addEventListener("keydown", onKeyDown);
@@ -160,23 +94,20 @@ function PreviewDialog({
     if (!file) return null;
 
     return (
-        <div className="flex h-[100dvh] w-[100dvw] flex-col overflow-hidden bg-slate-950 sm:h-[calc(100dvh-2rem)] sm:w-[calc(100dvw-2rem)] sm:rounded-2xl sm:border sm:border-slate-700 sm:shadow-xl">     {
-            //         <div className="flex h-[100dvh] w-[100dvw] flex-col overflow-hidden bg-slate-950 sm:h-[calc(100dvh-2rem)] sm:w-[calc(100dvw-2rem)] sm:rounded-2xl sm:border sm:border-slate-700">
-
-        //<div className="flex h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-xl">
-        }
+        <div className="flex h-[100dvh] w-[100dvw] flex-col overflow-hidden bg-slate-950 sm:h-[calc(100dvh-2rem)] sm:w-[calc(100dvw-2rem)] sm:rounded-2xl sm:border sm:border-slate-700 sm:shadow-xl">
             <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-2 text-slate-100">
                 <div className="min-w-0 truncate text-sm">
-                    {index + 1} / {files.length} {file.path} : {loadingMessage}
+                    {index + 1} / {files.length} {file.path}
+                    {loadingMessage ? ` : ${loadingMessage}` : ""}
                 </div>
 
                 <div className="flex shrink-0 gap-2">
                     <button
                         type="button"
-                        onClick={async () => {
+                        onClick={() => {
                             const link = document.createElement("a");
                             link.href = downloadUrl(apiServer, file);
-                            link.target = "_blank"; // 新しいタブで開く指定
+                            link.target = "_blank";
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
@@ -185,12 +116,13 @@ function PreviewDialog({
                     >
                         Open
                     </button>
+
                     <button
                         type="button"
                         onClick={async () => {
                             if (download) {
                                 await download(file, (loaded, total) => {
-                                    setLoadingMessage(`${loaded}/${total}`)
+                                    setLoadingMessage(`${loaded}/${total}`);
                                 });
                                 return;
                             }
@@ -207,7 +139,7 @@ function PreviewDialog({
                         Download
                     </button>
 
-                    {onClose &&
+                    {onClose && (
                         <button
                             type="button"
                             onClick={onClose}
@@ -215,82 +147,18 @@ function PreviewDialog({
                         >
                             Close
                         </button>
-                    }
+                    )}
                 </div>
             </div>
+
             <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
-                {!src && !text ? (
-                    <div className="text-sm text-slate-400">Loading...</div>
-                ) : isVideo(file.path) ? (
-                    <video
-                        src={src}
-                        controls
-                        autoPlay
-                        className="max-h-full max-w-full"
-                    />
-                ) : isAudio(file.path) ? (
-                    <div className="w-full max-w-2xl px-6 text-center">
-                        <div className="mb-4 break-all text-sm text-slate-300">
-                            {file.path}
-                        </div>
-                        <audio
-                            src={src}
-                            controls
-                            autoPlay
-                            className="w-full"
-                        />
-                    </div>
-                ) : isImage(file.path) ? (
-                    <img
-                        src={src}
-                        alt={file.path}
-                        className="max-h-full max-w-full object-contain"
-                    />
-                ) : isPdf(file.path) ? (
-                    <iframe
-                        src={src}
-                        title={file.path}
-                        className="h-full w-full bg-white"
-                    />
-                ) : isText(file.path) ? (
-                    <pre className="h-full w-full overflow-auto whitespace-pre-wrap break-words bg-slate-950 p-4 text-left text-xs text-slate-100">
-                        {text}
-                    </pre>
-                ) : isEpub(file.path) ? (
-                    <div className="h-full w-full bg-white text-black">
-                        <ReactReader
-                            epubInitOptions={{ openAs: 'epub' }}
-                            url={src}
-                            location={epubLocation}
-                            locationChanged={(nextLocation: string) => {
-                                setEpubLocation(nextLocation);
-                            }}
-                            getRendition={(rendition) => {
-                                renditionRef.current = rendition;
-                            }}
-                        />
-                    </div>
-                ) : isArchive(file.path) ? (
-                    <div className="text-sm text-slate-400">
-                        <button onClick={
-                            async () => {
-                                const f = await getUrlFromTargetFile(file);
-                                showZipFileListDialog({
-                                    initialPath: "/",
-                                    title: file.path,
-                                    source: {
-                                        type: "blob",
-                                        blob: await makeBlobFromUrl(f)
-                                    }
-                                })
-                            }
-                        }>OPEN</button>
-                    </div>
-                ) : (
-                    <div className="text-sm text-slate-400">
-                        Preview not supported
-                    </div>
-                )}
+                <PreviewPage
+                    key={`${file.id}:${file.path}`}
+                    file={file}
+                    apiServer={apiServer}
+                    getObjectUrl={getObjectUrl}
+                    onLoadingMessage={setLoadingMessage}
+                />
             </div>
 
             <div className="flex justify-center gap-3 border-t border-slate-800 px-4 py-3">
