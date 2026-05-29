@@ -4,6 +4,8 @@ declare global {
       apiKey?: string;
       apiServer?: string;
       initData?: string;
+      coverSrc?: string;
+      coverData?: string;
     };
   }
 }

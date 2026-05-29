@@ -22,7 +22,7 @@ const isCover = (path: string) => {
 const compareByName = (a: TargetFile, b: TargetFile) =>
   collator.compare(a.path, b.path);
 
-const compareComic = (a: TargetFile, b: TargetFile) => {
+export const compareComic = (a: TargetFile, b: TargetFile) => {
   if (a.isDir && !b.isDir) return -1;
   if (!a.isDir && b.isDir) return 1;
   if (isCover(a.path) && !isCover(b.path)) return -1;

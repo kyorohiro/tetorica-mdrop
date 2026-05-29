@@ -21,6 +21,7 @@ type PreviewPageStatus = "none" | "loading" | "loaded" | "error";
 export type PreviewPageProps = {
     file: TargetFile;
     apiServer?: string;
+    coverSrc?: string;
     getObjectUrl?: (
         file: TargetFile,
         onProgress?: (loaded: number, total: number) => void
@@ -33,6 +34,7 @@ export function PreviewPage({
     apiServer = "",
     getObjectUrl,
     onLoadingMessage,
+    coverSrc,
 }: PreviewPageProps) {
     const [status, setStatus] = React.useState<PreviewPageStatus>("none");
     const [src, setSrc] = React.useState("");
@@ -47,8 +49,8 @@ export function PreviewPage({
         async (target: TargetFile) => {
             return getObjectUrl
                 ? await getObjectUrl(target, (loaded, total) => {
-                      onLoadingMessage?.(`${loaded}/${total}`);
-                  })
+                    onLoadingMessage?.(`${loaded}/${total}`);
+                })
                 : downloadUrl(apiServer, target);
         },
         [apiServer, getObjectUrl, onLoadingMessage]
@@ -213,10 +215,17 @@ export function PreviewPage({
             </div>
         );
     }
-
     if (isArchive(file.path)) {
         return (
-            <div className="text-sm text-slate-400">
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-sm text-slate-400">
+                {coverSrc && (
+                    <img
+                        src={coverSrc}
+                        alt="cover"
+                        className="max-h-[70%] max-w-[90%] rounded-lg object-contain"
+                    />
+                )}
+
                 <button
                     type="button"
                     onClick={async () => {
@@ -236,6 +245,7 @@ export function PreviewPage({
                             }
                         }
                     }}
+                    className="rounded-lg border border-slate-700 px-4 py-2 text-xs text-slate-300 hover:bg-slate-800"
                 >
                     OPEN
                 </button>

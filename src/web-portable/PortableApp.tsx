@@ -143,6 +143,10 @@ function PortableApp() {
                     }
                 },
                 isClose: false,
+coverSrc:
+  window.__MDROP_CONFIG__?.coverSrc ??
+  window.__MDROP_CONFIG__?.coverData ??
+  "",
             });
         }
     }, []);

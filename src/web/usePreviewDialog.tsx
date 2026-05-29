@@ -8,6 +8,7 @@ type PreviewDialogOptions = {
     files: TargetFile[];
     initialIndex: number;
     apiServer?: string;
+    coverSrc?: string;
     getObjectUrl?: (
         file: TargetFile,
         onProgress?: (loaded: number, total: number) => void
@@ -57,10 +58,12 @@ function PreviewDialog({
     files,
     initialIndex,
     apiServer = "",
+    coverSrc,
     getObjectUrl,
     download,
     onClose,
 }: PreviewDialogOptions & { onClose?: () => void }) {
+    console.log(">> coverSrc", !!coverSrc);
     const [index, setIndex] = React.useState(initialIndex);
     const [loadingMessage, setLoadingMessage] = useState("");
 
@@ -209,6 +212,7 @@ function PreviewDialog({
                     apiServer={apiServer}
                     getObjectUrl={getObjectUrl}
                     onLoadingMessage={setLoadingMessage}
+                    coverSrc={coverSrc}
                 />
             </div>
 
