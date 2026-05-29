@@ -74,6 +74,50 @@ function PreviewDialog({
         [files.length]
     );
 
+    const touchRef = React.useRef<{
+        startX: number;
+        startY: number;
+        startTime: number;
+    } | null>(null);
+
+    const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+        const t = e.touches[0];
+        touchRef.current = {
+            startX: t.clientX,
+            startY: t.clientY,
+            startTime: Date.now(),
+        };
+    }, []);
+
+    const handleTouchEnd = React.useCallback(
+        (e: React.TouchEvent) => {
+            const start = touchRef.current;
+            touchRef.current = null;
+
+            if (!start) return;
+
+            const t = e.changedTouches[0];
+            const dx = t.clientX - start.startX;
+            const dy = t.clientY - start.startY;
+            const dt = Date.now() - start.startTime;
+
+            const absX = Math.abs(dx);
+            const absY = Math.abs(dy);
+
+            // 横フリックだけ拾う
+            if (absX < 50) return;
+            if (absX < absY * 1.2) return;
+            if (dt > 800) return;
+
+            if (dx < 0) {
+                move(1); // 左にフリック => 次へ
+            } else {
+                move(-1); // 右にフリック => 前へ
+            }
+        },
+        [move]
+    );
+
     React.useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
@@ -151,7 +195,11 @@ function PreviewDialog({
                 </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
+            <div
+                className="flex min-h-0 flex-1 items-center justify-center bg-black"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+            >
                 <PreviewPage
                     key={`${file.id}:${file.path}`}
                     file={file}
