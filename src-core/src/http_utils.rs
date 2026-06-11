@@ -1,14 +1,15 @@
 use axum;
 
 use if_addrs::get_if_addrs;
-use serde::{Serialize};
+use serde::Serialize;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::{
+    collections::BTreeSet,
     collections::HashMap,
     path::PathBuf,
 };
 
-use axum::http::{ HeaderValue};
+use axum::http::{HeaderName, HeaderValue};
 use axum::{
     body::Body,
     extract::ConnectInfo,
@@ -25,9 +26,7 @@ use std::net::SocketAddr;
 
 use base64::{engine::general_purpose, Engine};
 
-use crate::http::SharedHttpServerContext;
-
-
+use crate::http::{ServerStatus, SharedHttpServerContext};
 
 pub fn list_ips() -> Vec<String> {
     let mut result = Vec::new();
@@ -175,6 +174,85 @@ pub fn content_type_from_path(path: &PathBuf) -> &'static str {
 
         _ => "application/octet-stream",
     }
+}
+
+pub fn apply_shared_security_headers(res: &mut Response<Body>) {
+    let headers = res.headers_mut();
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(
+        HeaderName::from_static("cross-origin-resource-policy"),
+        HeaderValue::from_static("same-origin"),
+    );
+}
+
+pub fn build_html_content_security_policy(status: &ServerStatus) -> String {
+    let allow_hosts = if status.local_only == Some(true) {
+        let scheme = if status.is_https == Some(true) {
+            "https"
+        } else {
+            "http"
+        };
+        let port = status.port.unwrap_or(7878);
+        let mut origins = BTreeSet::new();
+
+        origins.insert(format!("{scheme}://localhost:{port}"));
+        origins.insert(format!("{scheme}://127.0.0.1:{port}"));
+
+        if let Some(hostname) = status.hostname.as_deref() {
+            let hostname = hostname.trim().trim_end_matches('/');
+            if !hostname.is_empty() {
+                origins.insert(format!("{scheme}://{hostname}:{port}"));
+            }
+        }
+
+        if let Some(ips) = status.ips.as_ref() {
+            for ip in ips {
+                if let Some(ip) = ip.split_whitespace().next() {
+                    if !ip.is_empty() {
+                        origins.insert(format!("{scheme}://{ip}:{port}"));
+                    }
+                }
+            }
+        }
+
+        origins.into_iter().collect::<Vec<_>>().join(" ")
+    } else {
+        "'self'".to_string()
+    };
+
+    format!(
+        concat!(
+            "default-src 'self' blob: data:; ",
+            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; ",
+            "style-src 'self' 'unsafe-inline'; ",
+            "img-src 'self' blob: data: {allow_hosts}; ",
+            "font-src 'self' data:; ",
+            "media-src 'self' blob: data: {allow_hosts}; ",
+            "connect-src 'self' {allow_hosts}; ",
+            "worker-src 'self' blob:; ",
+            "frame-src 'none'; ",
+            "object-src 'none'; ",
+            "base-uri 'none'; ",
+            "form-action 'none'; ",
+            "frame-ancestors 'none';"
+        ),
+        allow_hosts = allow_hosts
+    )
+}
+
+pub fn apply_html_security_headers(res: &mut Response<Body>, csp: &str) {
+    apply_shared_security_headers(res);
+    res.headers_mut().insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_str(csp).unwrap_or_else(|_| HeaderValue::from_static("default-src 'self'")),
+    );
 }
 
 
@@ -328,4 +406,3 @@ pub fn content_disposition_inline(filename: &str) -> String {
         encoded
     )
 }
-

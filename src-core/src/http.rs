@@ -26,7 +26,10 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::http_api::{api_key_guard_middleware, create_api_key};
 use crate::http_file;
-use crate::http_utils::{access_guard_middleware, list_ips};
+use crate::http_utils::{
+    access_guard_middleware, apply_html_security_headers, apply_shared_security_headers,
+    build_html_content_security_policy, list_ips,
+};
 use crate::{hello, http_api};
 //
 //
@@ -225,12 +228,15 @@ pub struct SharedHttpServerContext {
 }
 
 async fn web_index(AxumState(state): AxumState<SharedHttpServerContext>) -> impl IntoResponse {
-    let api_key = {
+    let (api_key, csp) = {
         let ctx = state.inner.lock().unwrap();
-        ctx.api_key.clone()
+        (
+            ctx.api_key.clone(),
+            build_html_content_security_policy(&ctx.status),
+        )
     };
 
-    embedded_web_html_response("web.html", &api_key)
+    embedded_web_html_response("web.html", &api_key, &csp)
 }
 
 async fn web_asset(Path(path): Path<String>) -> impl IntoResponse {
@@ -239,29 +245,35 @@ async fn web_asset(Path(path): Path<String>) -> impl IntoResponse {
 
 async fn web_asset_unrar_wasm() -> Response {
     match WebAssets::get("unrar.wasm") {
-        Some(content) => Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "application/wasm")
-            .body(Body::from(content.data.into_owned()))
-            .unwrap(),
+        Some(content) => {
+            let mut res = Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "application/wasm")
+                .body(Body::from(content.data.into_owned()))
+                .unwrap();
+            apply_shared_security_headers(&mut res);
+            res
+        }
         None => Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(Body::from("not found"))
             .unwrap(),
     }
 }
-fn embedded_web_html_response(path: &str, api_key: &str) -> Response {
+fn embedded_web_html_response(path: &str, api_key: &str, csp: &str) -> Response {
     let Some(file) = WebAssets::get(path) else {
         return StatusCode::NOT_FOUND.into_response();
     };
     let html = String::from_utf8_lossy(&file.data).replace("MDROP_DEV_ONLY_API_KEY", api_key);
     let html = html.replace("http://localhost:7878", "");
-    Response::builder()
+    let mut res = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
         .header(header::CACHE_CONTROL, "no-store")
         .body(Body::from(html))
-        .unwrap()
+        .unwrap();
+    apply_html_security_headers(&mut res, csp);
+    res
 }
 
 fn embedded_file_response(path: &str) -> Response {
@@ -269,11 +281,13 @@ fn embedded_file_response(path: &str) -> Response {
         Some(file) => {
             let mime = mime_guess::from_path(path).first_or_octet_stream();
 
-            Response::builder()
+            let mut res = Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, mime.as_ref())
                 .body(Body::from(file.data.into_owned()))
-                .unwrap()
+                .unwrap();
+            apply_shared_security_headers(&mut res);
+            res
         }
         None => StatusCode::NOT_FOUND.into_response(),
     }

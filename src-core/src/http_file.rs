@@ -25,7 +25,10 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::http::SharedHttpServerContext;
-use crate::http_utils::{content_disposition_inline, natural_sort_key, parse_range_header};
+use crate::http_utils::{
+    apply_html_security_headers, apply_shared_security_headers, build_html_content_security_policy,
+    content_disposition_inline, natural_sort_key, parse_range_header,
+};
 use crate::http_utils::{
     content_type_from_path, escape_header_value, escape_html, url_encode_path_segment,
 };
@@ -101,17 +104,20 @@ async fn download_file_inner(
     headers: HeaderMap,
 ) -> Result<Response<Body>, (StatusCode, String)> {
     println!("> download_file_inner {id} {:?}", sub_path);
-    let base_path = {
+    let (base_path, csp) = {
         let shared = state
             .inner
             .lock()
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-        shared
-            .files
-            .get(&id)
-            .cloned()
-            .ok_or((StatusCode::NOT_FOUND, "not found".to_string()))?
+        (
+            shared
+                .files
+                .get(&id)
+                .cloned()
+                .ok_or((StatusCode::NOT_FOUND, "not found".to_string()))?,
+            build_html_content_security_policy(&shared.status),
+        )
     };
 
     let path = match sub_path.as_deref() {
@@ -125,13 +131,13 @@ async fn download_file_inner(
 
     if metadata.is_dir() {
         //println!(">> file dir {:?}", path.as_path().to_str());
-        return directory_response(&id, sub_path.as_deref(), &path).await;
+        return directory_response(&id, sub_path.as_deref(), &path, &csp).await;
         //return directory_response(&id, &path).await;
     }
 
     if metadata.is_file() {
         //println!(">> file {:?}", path.as_path().to_str());
-        return file_response(&path, metadata.len(), headers).await;
+        return file_response(&path, metadata.len(), headers, &csp).await;
     }
 
     println!(">> ERROR");
@@ -164,6 +170,7 @@ async fn directory_response(
     id: &str,
     sub_path: Option<&str>,
     path: &PathBuf,
+    csp: &str,
 ) -> Result<Response<Body>, (StatusCode, String)> {
     let mut entries = tokio::fs::read_dir(path)
         .await
@@ -242,17 +249,20 @@ async fn directory_response(
 "#,
     );
 
-    Response::builder()
+    let mut res = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
         .body(Body::from(html))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    apply_html_security_headers(&mut res, csp);
+    Ok(res)
 }
 
 async fn file_response(
     path: &PathBuf,
     file_size: u64,
     headers: HeaderMap,
+    csp: &str,
 ) -> Result<Response<Body>, (StatusCode, String)> {
     let filename = path
         .file_name()
@@ -289,7 +299,7 @@ async fn file_response(
         let stream = ReaderStream::new(file.take(len));
         let body = Body::from_stream(stream);
 
-        return Response::builder()
+        let mut res = Response::builder()
             .status(StatusCode::PARTIAL_CONTENT)
             .header(header::CONTENT_TYPE, content_type)
             .header(header::ACCEPT_RANGES, "bytes")
@@ -303,13 +313,19 @@ async fn file_response(
                 content_disposition_inline(filename),
             )
             .body(body)
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        if content_type.starts_with("text/html") {
+            apply_html_security_headers(&mut res, csp);
+        } else {
+            apply_shared_security_headers(&mut res);
+        }
+        return Ok(res);
     }
 
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
 
-    Response::builder()
+    let mut res = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
         .header(header::ACCEPT_RANGES, "bytes")
@@ -319,5 +335,11 @@ async fn file_response(
             content_disposition_inline(filename),
         )
         .body(body)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    if content_type.starts_with("text/html") {
+        apply_html_security_headers(&mut res, csp);
+    } else {
+        apply_shared_security_headers(&mut res);
+    }
+    Ok(res)
 }
