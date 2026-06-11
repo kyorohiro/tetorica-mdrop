@@ -1,5 +1,16 @@
 
 
+# Release Memo
+
+1) package.jsom src-tauri/Cargo.toml src-tauri/tauri.conf.json の Version を最新にする
+2) npm run build 
+
+3) npm run build:portable
+4) cd dist-portable
+5) cp portable.html index.html
+6) zip -r ../web-build_0.7.1_gh.zip . 
+7) dist-portabe/ を docs/demo/ 配下にコピー
+
 # For Portable 
 
 

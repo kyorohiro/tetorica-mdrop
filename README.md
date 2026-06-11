@@ -224,15 +224,15 @@ Using the IP address (e.g. http://192.168.x.x:7878/) is more reliable than .loca
 ```
 % sh deploy_mac.sh
 % ~/bin/butler login
-% ~/bin/butler push target/release/bundle/dmg/tetorica-mdrop_0.6.3_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.6.3
+% ~/bin/butler push target/release/bundle/dmg/tetorica-mdrop_0.7.1_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.7.1
 
-% ~/bin/butler push target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.6.3_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.6.3
+% ~/bin/butler push target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.7.1
 
-% ~/bin/butler push "tetorica-mdrop_0.6.3_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.6.3
+% ~/bin/butler push "tetorica-mdrop_0.7.1_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.7.1
 f
-% ~/bin/butler push "tetorica-mdrop_0.6.3_amd64.AppImage" kyorohiro/tetorica-mdrop:linux-appimage-amd64 --userversion 0.6.3
-% ~/bin/butler push "tetorica-mdrop_0.6.3_amd64.deb" kyorohiro/tetorica-mdrop:linux-deb-amd64 --userversion 0.6.3
-% ~/bin/butler push "tetorica-mdrop-0.6.3-1.x86_64.rpm" kyorohiro/tetorica-mdrop:linux-rpm-amd64 --userversion 0.6.3
+% ~/bin/butler push "tetorica-mdrop_0.7.1_amd64.AppImage" kyorohiro/tetorica-mdrop:linux-appimage-amd64 --userversion 0.7.1
+% ~/bin/butler push "tetorica-mdrop_0.7.1_amd64.deb" kyorohiro/tetorica-mdrop:linux-deb-amd64 --userversion 0.7.1
+% ~/bin/butler push "tetorica-mdrop-0.7.1-1.x86_64.rpm" kyorohiro/tetorica-mdrop:linux-rpm-amd64 --userversion 0.7.1
 
 
 
@@ -300,5 +300,5 @@ DATE: ---Sun 26 Apr 2026---
 npm run build:portable
 cd dist-portable
 cp portable.html index.html
-zip -r ../web-build_0.6.3_gh.zip .
+zip -r ../web-build_0.7.1_gh.zip .
 ```
