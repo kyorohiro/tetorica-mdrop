@@ -5,4 +5,4 @@ export APPLE_PASSWORD="<password>"
 export APPLE_TEAM_ID="5H7KW7PC7C"
 
 npm run tauri build -- --target x86_64-apple-darwin
-npm run tauri build
+npm run tauri build -- --target aarch64-apple-darwin
