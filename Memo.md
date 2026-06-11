@@ -1,120 +1,122 @@
-
-
 # Release Memo
 
-```
-1) package.jsom src-tauri/Cargo.toml src-tauri/tauri.conf.json の Version を最新にする
-2) npm run build 
+## Release Flow
 
-// portable 版 (web) を ビルド
-3) npm run build:portable
-4) cd dist-portable
-5) cp portable.html index.html
-6) zip -r ../web-build_0.7.1_gh.zip . 
-7) dist-portabe/ を docs/demo/ 配下にコピー
+1. Update version in:
+   - `package.json`
+   - `src-tauri/Cargo.toml`
+   - `src-tauri/tauri.conf.json`
 
-// windows linux ビルド
-8) git tag v0.7.1
-9) git push origin v0.7.1 
+2. Build web app:
+   ```sh
+   npm run build
+   ```
 
-// macビルド
-10) sh deploy_mac.sh
+3. Build portable web package:
+   ```sh
+   npm run build:portable
+   cd dist-portable
+   cp portable.html index.html
+   zip -r ../web-build_0.7.1_gh.zip .
+   cd ..
+   ```
 
+4. Copy `dist-portable/` to `docs/demo/` for GitHub Pages.
 
-// itchにリリース
-% ~/bin/butler login
-% ~/bin/butler push target/release/bundle/dmg/tetorica-mdrop_0.7.1_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.7.1
+5. Push tag for Windows/Linux build:
+   ```sh
+   git tag v0.7.1
+   git push origin v0.7.1
+   ```
 
-% ~/bin/butler push target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.7.1
+6. Build macOS app bundles:
+   ```sh
+   sh deploy_mac.sh
+   ```
 
-% ~/bin/butler push "tetorica-mdrop_0.7.1_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.7.1
+7. Build macOS CLI archives:
+   ```sh
+   sh deploy_mac_cli.sh
+   ```
 
-% ~/bin/butler push "tetorica-mdrop_0.7.1_aarch64.AppImage" kyorohiro/tetorica-mdrop:linux-amd64 --userversion 0.7.1
+8. Upload to itch.io:
+   ```sh
+   ~/bin/butler login
+   ~/bin/butler push target/aarch64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.7.1
+   ~/bin/butler push target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.7.1
+   ~/bin/butler push "tetorica-mdrop_0.7.1_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.7.1
+   ~/bin/butler push "tetorica-mdrop_0.7.1_amd64.AppImage" kyorohiro/tetorica-mdrop:linux-appimage-amd64 --userversion 0.7.1
+   ~/bin/butler push "tetorica-mdrop_0.7.1_aarch64.AppImage" kyorohiro/tetorica-mdrop:linux-appimage-aarch64 --userversion 0.7.1
+   ```
 
-% ~/bin/butler push "tetorica-mdrop_0.7.1_amd64.AppImage" kyorohiro/tetorica-mdrop:linux-amd64 --userversion 0.7.1
+9. Upload to GitHub Release manually:
+   - `tetorica-mdrop-aarch64-apple-darwin.tar.gz`
+   - `tetorica-mdrop-x86_64-apple-darwin.tar.gz`
+   - `web-build_0.7.1_gh.zip`
 
+10. After all uploads are complete, run the required update command in `kyorohiro/homebrew_tetorica`.
 
-sh deploy_mac_cli.sh
+## Portable
 
-以下を手動でgithub release にあげる
+### Dev
 
-- tetorica-mdrop-aarch64-apple-darwin.tar.gz
-- tetorica-mdrop-x86_64-apple-darwin.tar.gz
-
-
-全て上げ終わったら
-kyorohiro/homebrew_tetorica で 所定のcommand を実行
-```
-
-
-# For Portable 
-
-
-### dev
-
-```
+```sh
 npm run dev:portable
--> http://localhost:5173/portable.html
 ```
 
-### build
+Open:
 
-```
-npm run build:portable
-cd dist-portable
-cp portable.html index.html
-zip -r ../web-build_0.6.2_gh.zip .
+```txt
+http://localhost:5173/portable.html
 ```
 
+### Build
 
-# For Windows and Linux 
-
-で、ビルド
-
-```
-git tag xxx
-git push xxxx
-```
-
-# For Itch 
-
-```
-sh deploy_mac.sh
-% ~/bin/butler push target/aarch64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.7.1
-
-% ~/bin/butler push target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.7.1
-```
-
-Github Action で Windows 版もできたら、
-
-```
-% ~/bin/butler push "tetorica-mdrop_0.7.1_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.7.1
-f
-```
-
-```
+```sh
 npm run build:portable
 cd dist-portable
 cp portable.html index.html
 zip -r ../web-build_0.7.1_gh.zip .
+cd ..
 ```
 
-# For github io
+## Windows and Linux
 
-itch向けの dist-portable を docs/demo にコピー
+Builds are triggered by tag push:
 
-# For Github
-
+```sh
+git tag v0.7.1
+git push origin v0.7.1
 ```
+
+## macOS App
+
+```sh
+sh deploy_mac.sh
+```
+
+This builds:
+
+- `target/aarch64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_aarch64.dmg`
+- `target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_x64.dmg`
+
+## macOS CLI
+
+```sh
 sh deploy_mac_cli.sh
 ```
 
-以下を手動でgithub release にあげる
+This creates:
 
-- tetorica-mdrop-aarch64-apple-darwin.tar.gz
-- tetorica-mdrop-x86_64-apple-darwin.tar.gz
+- `tetorica-mdrop-aarch64-apple-darwin.tar.gz`
+- `tetorica-mdrop-x86_64-apple-darwin.tar.gz`
 
-# For Brew 
+## GitHub Pages
 
-全て上げ終わったら
-kyorohiro/homebrew_tetorica で 所定のcommand を実行
+Copy portable build output to:
+
+- `docs/demo/`
+
+## Brew
+
+After all release artifacts are uploaded, update `kyorohiro/homebrew_tetorica`.
