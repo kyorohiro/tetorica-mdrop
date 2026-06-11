@@ -19,9 +19,8 @@
 
 // macビルド
 10) sh deploy_mac.sh
-```
 
-```
+
 // itchにリリース
 % ~/bin/butler login
 % ~/bin/butler push target/release/bundle/dmg/tetorica-mdrop_0.7.1_aarch64.dmg kyorohiro/tetorica-mdrop:mac-apple-silicon --userversion 0.7.1
@@ -29,11 +28,24 @@
 % ~/bin/butler push target/x86_64-apple-darwin/release/bundle/dmg/tetorica-mdrop_0.7.1_x64.dmg kyorohiro/tetorica-mdrop:mac-intel --userversion 0.7.1
 
 % ~/bin/butler push "tetorica-mdrop_0.7.1_x64-setup.exe" kyorohiro/tetorica-mdrop:windows --userversion 0.7.1
-f
-% ~/bin/butler push "tetorica-mdrop_0.7.1_amd64.AppImage" kyorohiro/tetorica-mdrop:linux-appimage-amd64 --userversion 0.7.1
-% ~/bin/butler push "tetorica-mdrop_0.7.1_amd64.deb" kyorohiro/tetorica-mdrop:linux-deb-amd64 --userversion 0.7.1
-% ~/bin/butler push "tetorica-mdrop-0.7.1-1.x86_64.rpm" kyorohiro/tetorica-mdrop:linux-rpm-amd64 --userversion 0.7.1
+
+% ~/bin/butler push "tetorica-mdrop_0.7.1_aarch64.AppImage" kyorohiro/tetorica-mdrop:linux-amd64 --userversion 0.7.1
+
+% ~/bin/butler push "tetorica-mdrop_0.7.1_amd64.AppImage" kyorohiro/tetorica-mdrop:linux-amd64 --userversion 0.7.1
+
+
+sh deploy_mac_cli.sh
+
+以下を手動でgithub release にあげる
+
+- tetorica-mdrop-aarch64-apple-darwin.tar.gz
+- tetorica-mdrop-x86_64-apple-darwin.tar.gz
+
+
+全て上げ終わったら
+kyorohiro/homebrew_tetorica で 所定のcommand を実行
 ```
+
 
 # For Portable 
 
