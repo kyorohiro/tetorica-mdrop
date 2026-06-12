@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import "../App.css";
-import { FileTargetFile, TargetFile } from "../web/api";
-import { usePreviewDialog } from "../web/usePreviewDialog";
+import { FileTargetFile, TargetFile } from "../mdrop-web/api";
+import { usePreviewDialog } from "../mdrop-web/usePreviewDialog";
 import { getDroppedFiles, supportedExtensions } from "../utils";
-import { useBrowserFileListDialog } from "../web/useBrowserFileListDialog";
-import { preivewGlobalSetting } from "../web/preview/preivewSetting";
+import { useBrowserFileListDialog } from "../mdrop-web/useBrowserFileListDialog";
+import { preivewGlobalSetting } from "../mdrop-web/preview/preivewSetting";
 
 function PortableApp() {
     const [errorMsg,] = useState<string>("");

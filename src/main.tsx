@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./web-tauri/App";
-import { WebApp } from "./web/WebApp"; // パスは実際に合わせる
+import { WebApp } from "./mdrop-web/WebApp"; // パスは実際に合わせる
 import { DialogProvider } from "./useDialog";
 import "./App.css";
 

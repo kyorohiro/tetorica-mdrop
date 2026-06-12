@@ -188,7 +188,7 @@ pub fn apply_shared_security_headers(res: &mut Response<Body>) {
     );
     headers.insert(
         HeaderName::from_static("cross-origin-resource-policy"),
-        HeaderValue::from_static("same-origin"),
+        HeaderValue::from_static("same-site"),
     );
 }
 
@@ -204,6 +204,8 @@ pub fn build_html_content_security_policy(status: &ServerStatus) -> String {
 
         origins.insert(format!("{scheme}://localhost:{port}"));
         origins.insert(format!("{scheme}://127.0.0.1:{port}"));
+        origins.insert(format!("{scheme}://localhost:1420"));
+        origins.insert(format!("{scheme}://127.0.0.1:1420"));
 
         if let Some(hostname) = status.hostname.as_deref() {
             let hostname = hostname.trim().trim_end_matches('/');
